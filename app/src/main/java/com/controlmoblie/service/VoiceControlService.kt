@@ -26,6 +26,7 @@ class VoiceControlService : Service() {
     private lateinit var overlay: ControlOverlay
     private var accessibilityService: ControlAccessibilityService? = null
     private var isRunning = false
+    private var listenJob: Job? = null
 
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "voice_control_channel"
@@ -63,7 +64,8 @@ class VoiceControlService : Service() {
 
     private fun startListening() {
         overlay.updateState(OverlayState.LISTENING)
-        serviceScope.launch {
+        listenJob?.cancel()
+        listenJob = serviceScope.launch {
             asrManager.events.collect { event ->
                 when (event) {
                     is AsrEvent.PartialResult -> {
@@ -147,6 +149,8 @@ class VoiceControlService : Service() {
 
     fun stopListening() {
         isRunning = false
+        listenJob?.cancel()
+        listenJob = null
         asrManager.stopListening()
         overlay.updateState(OverlayState.IDLE)
     }
