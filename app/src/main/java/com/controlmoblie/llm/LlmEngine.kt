@@ -16,6 +16,7 @@ class LlmEngine(private val context: Context) {
     companion object {
         private const val MODEL_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
         private const val MODEL_FILENAME = "qwen2.5-0.5b-q4.gguf"
+        private const val MODEL_TEMP_FILENAME = "qwen2.5-0.5b-q4.gguf.tmp"
     }
 
     val isModelLoaded: Boolean get() = isLoaded
@@ -29,24 +30,31 @@ class LlmEngine(private val context: Context) {
                 modelPath = dest.absolutePath
                 return@withContext
             }
+            // Download to temp file to avoid corrupt files on failure
+            val tmp = File(context.filesDir, MODEL_TEMP_FILENAME)
+            tmp.delete()
             val url = URL(MODEL_URL)
-            val connection = url.openConnection()
+            val connection = url.openConnection().apply {
+                connectTimeout = 30000
+                readTimeout = 60000
+            }
             connection.connect()
             val fileLength = connection.contentLengthLong
             val input = connection.getInputStream()
-            val output = FileOutputStream(dest)
-            val buffer = ByteArray(8192)
-            var totalRead = 0L
-            var bytesRead: Int
-            while (input.read(buffer).also { bytesRead = it } != -1) {
-                output.write(buffer, 0, bytesRead)
-                totalRead += bytesRead
-                if (fileLength > 0) {
-                    onProgress(totalRead.toFloat() / fileLength)
+            tmp.outputStream().use { output ->
+                val buffer = ByteArray(8192)
+                var totalRead = 0L
+                var bytesRead: Int
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+                    if (fileLength > 0) {
+                        onProgress(totalRead.toFloat() / fileLength)
+                    }
                 }
             }
-            output.close()
             input.close()
+            tmp.renameTo(dest)
             isLoaded = false
             modelPath = dest.absolutePath
         }
@@ -116,5 +124,9 @@ class LlmEngine(private val context: Context) {
 
     fun unload() {
         isLoaded = false
+        if (useNative) {
+            try { NativeLlmEngine.unloadModel() } catch (_: Exception) {}
+            useNative = false
+        }
     }
 }

@@ -20,7 +20,7 @@ sealed class AsrEvent {
 class SpeechRecognizerManager(private val context: Context) {
 
     private var recognizer: SpeechRecognizer? = null
-    private val _events = Channel<AsrEvent>(Channel.BUFFERED)
+    private val _events = Channel<AsrEvent>(Channel.CONFLATED)
     val events: Flow<AsrEvent> = _events.receiveAsFlow()
 
     private val listener = object : RecognitionListener {

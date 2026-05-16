@@ -18,9 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import com.controlmoblie.llm.LlmEngine
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -123,16 +126,15 @@ class MainActivity : ComponentActivity() {
                 OutlinedButton(
                     onClick = {
                         isDownloading = true
-                        Thread {
+                        downloadProgress = 0f
+                        this@MainActivity.lifecycleScope.launch(Dispatchers.IO) {
                             val llm = LlmEngine(this@MainActivity)
-                            kotlinx.coroutines.runBlocking {
-                                llm.downloadModel { progress ->
-                                    downloadProgress = progress
-                                }
+                            llm.downloadModel { progress ->
+                                downloadProgress = progress
                             }
                             downloadProgress = -1f
                             isDownloading = false
-                        }.start()
+                        }
                     },
                     enabled = !isDownloading,
                     modifier = Modifier.fillMaxWidth()

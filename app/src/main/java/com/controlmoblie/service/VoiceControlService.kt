@@ -24,7 +24,6 @@ class VoiceControlService : Service() {
     private lateinit var parser: InstructionParser
     private lateinit var executionEngine: ExecutionEngine
     private lateinit var overlay: ControlOverlay
-    private var accessibilityService: ControlAccessibilityService? = null
     private var isRunning = false
     private var listenJob: Job? = null
 
@@ -37,7 +36,7 @@ class VoiceControlService : Service() {
         llmEngine = LlmEngine(this)
         parser = InstructionParser()
         overlay = ControlOverlay(this)
-        executionEngine = ExecutionEngine(accessibilityService)
+        executionEngine = ExecutionEngine(ControlAccessibilityService.instance)
 
         overlay.setOnToggleListener { toggleListening() }
         overlay.setOnStopListener { stopSelf() }
@@ -56,10 +55,6 @@ class VoiceControlService : Service() {
         }
 
         return START_STICKY
-    }
-
-    fun setAccessibilityService(service: ControlAccessibilityService?) {
-        accessibilityService = service
     }
 
     private fun startListening() {
@@ -89,7 +84,7 @@ class VoiceControlService : Service() {
     }
 
     private suspend fun processVoiceCommand(userText: String) {
-        val screenState = accessibilityService?.lastScreenState
+        val screenState = ControlAccessibilityService.instance?.lastScreenState
         val screenContext = if (screenState != null) {
             ScreenReader.buildScreenContext(screenState)
         } else ""

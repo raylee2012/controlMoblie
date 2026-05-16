@@ -15,6 +15,18 @@ class ControlAccessibilityService : AccessibilityService() {
 
     var lastScreenState: ScreenState = ScreenState()
 
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        instance = this
+        Log.d(TAG, "Accessibility service connected")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        instance = null
+        Log.d(TAG, "Accessibility service destroyed")
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
             event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
@@ -146,10 +158,12 @@ class ControlAccessibilityService : AccessibilityService() {
         val toY: Int
         val midX = size.x / 2
         val midY = size.y / 2
+        val isHorizontal = action.direction == ScrollDirection.LEFT || action.direction == ScrollDirection.RIGHT
+        val baseSize = if (isHorizontal) size.x else size.y
         val offset = when (action.distance) {
             ScrollDistance.SHORT -> SCROLL_SHORT_OFFSET_PX
-            ScrollDistance.HALF  -> size.y / 3
-            ScrollDistance.FULL  -> size.y * 2 / 3
+            ScrollDistance.HALF  -> baseSize / 3
+            ScrollDistance.FULL  -> baseSize * 2 / 3
         }
 
         when (action.direction) {
@@ -224,7 +238,8 @@ class ControlAccessibilityService : AccessibilityService() {
         runNext(0)
     }
 
-    private companion object {
+    companion object {
+        var instance: ControlAccessibilityService? = null
         const val SCROLL_GESTURE_DURATION_MS = 200L
         const val SEQUENCE_STEP_DELAY_MS = 200L
         const val SCROLL_SHORT_OFFSET_PX = 200
