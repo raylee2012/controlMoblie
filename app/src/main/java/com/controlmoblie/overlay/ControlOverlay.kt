@@ -27,9 +27,9 @@ class ControlOverlay(private val context: Context) {
     private var overlayView: FrameLayout? = null
     private var isShowing = false
 
-    private var _state = OverlayState.IDLE
-    private var _lastText = ""
-    private var _lastResult = ""
+    private var _state by mutableStateOf(OverlayState.IDLE)
+    private var _lastText by mutableStateOf("")
+    private var _lastResult by mutableStateOf("")
     private var onToggleListener: (() -> Unit)? = null
     private var onStopListener: (() -> Unit)? = null
 
