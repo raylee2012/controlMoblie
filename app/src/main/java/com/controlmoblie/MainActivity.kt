@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.controlmoblie.llm.LlmEngine
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 
@@ -69,6 +70,8 @@ class MainActivity : ComponentActivity() {
     ) {
         var hasOverlay by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(this@MainActivity)) }
         var hasAudio by remember { mutableStateOf(PermissionHelper.hasRecordPermission(this@MainActivity)) }
+        var downloadProgress by remember { mutableStateOf(-1f) }
+        var isDownloading by remember { mutableStateOf(false) }
 
         val overlayLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -102,6 +105,40 @@ class MainActivity : ComponentActivity() {
             }
             PermissionItem("录音权限", hasAudio, "用于语音识别") {
                 audioLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+            }
+
+            if (isDownloading) {
+                LinearProgressIndicator(
+                    progress = { if (downloadProgress >= 0f) downloadProgress else 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (downloadProgress >= 0f) "下载模型中... ${(downloadProgress * 100).toInt()}%"
+                    else "准备下载...",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (!isDownloading) {
+                OutlinedButton(
+                    onClick = {
+                        isDownloading = true
+                        Thread {
+                            val llm = LlmEngine(this@MainActivity)
+                            kotlinx.coroutines.runBlocking {
+                                llm.downloadModel { progress ->
+                                    downloadProgress = progress
+                                }
+                            }
+                            downloadProgress = -1f
+                            isDownloading = false
+                        }.start()
+                    },
+                    enabled = !isDownloading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("下载语音模型 (~350MB)")
+                }
             }
 
             Button(
