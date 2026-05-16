@@ -24,7 +24,7 @@ class LlmEngine(private val context: Context) {
         withContext(Dispatchers.IO) {
             val dest = File(context.filesDir, MODEL_FILENAME)
             if (dest.exists()) {
-                isLoaded = true
+                isLoaded = false
                 modelPath = dest.absolutePath
                 return@withContext
             }
@@ -46,7 +46,7 @@ class LlmEngine(private val context: Context) {
             }
             output.close()
             input.close()
-            isLoaded = true
+            isLoaded = false
             modelPath = dest.absolutePath
         }
     }
@@ -70,15 +70,16 @@ class LlmEngine(private val context: Context) {
 
     private suspend fun simulateInference(prompt: String): String {
         return when {
-            prompt.contains("打开") || prompt.contains("启动") -> {
-                "{\"action\": \"navigate\", \"type\": \"home\"}"
-            }
             prompt.contains("返回") || prompt.contains("后退") ->
                 "{\"action\": \"navigate\", \"type\": \"back\"}"
             prompt.contains("回到桌面") || prompt.contains("主页") ->
                 "{\"action\": \"navigate\", \"type\": \"home\"}"
-            prompt.contains("点击") || prompt.contains("打开") -> {
-                val target = extractAfterKeyword(prompt, listOf("点击", "打开"))
+            prompt.contains("点击") -> {
+                val target = extractAfterKeyword(prompt, listOf("点击"))
+                "{\"action\": \"click\", \"target\": \"$target\"}"
+            }
+            prompt.contains("打开") -> {
+                val target = extractAfterKeyword(prompt, listOf("打开"))
                 "{\"action\": \"click\", \"target\": \"$target\"}"
             }
             prompt.contains("上滑") || prompt.contains("向上滑") ->

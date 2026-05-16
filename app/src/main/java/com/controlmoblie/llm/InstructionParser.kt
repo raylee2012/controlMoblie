@@ -5,7 +5,16 @@ import com.controlmoblie.model.*
 class InstructionParser {
 
     fun parse(rawJson: String): InstructionResult {
-        val trimmed = rawJson.trim().removeSurrounding("```json").removeSurrounding("```").trim()
+        var trimmed = rawJson.trim()
+        if (trimmed.startsWith("```")) {
+            val firstNewline = trimmed.indexOf('\n')
+            if (firstNewline > 0) {
+                trimmed = trimmed.substring(firstNewline).trim()
+            }
+            if (trimmed.endsWith("```")) {
+                trimmed = trimmed.dropLast(3).trim()
+            }
+        }
         return try {
             val json = org.json.JSONObject(trimmed)
             val action = parseAction(json)
