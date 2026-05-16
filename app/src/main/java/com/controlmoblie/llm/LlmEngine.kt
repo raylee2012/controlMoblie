@@ -11,6 +11,7 @@ class LlmEngine(private val context: Context) {
 
     private var isLoaded = false
     private var modelPath: String = ""
+    private var useNative = false
 
     companion object {
         private const val MODEL_URL = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
@@ -55,16 +56,27 @@ class LlmEngine(private val context: Context) {
         return withContext(Dispatchers.IO) {
             val dest = File(context.filesDir, MODEL_FILENAME)
             if (!dest.exists()) return@withContext false
-            isLoaded = true
-            modelPath = dest.absolutePath
-            true
+            try {
+                useNative = NativeLlmEngine.loadModel(dest.absolutePath)
+                isLoaded = useNative
+                modelPath = dest.absolutePath
+                useNative
+            } catch (e: UnsatisfiedLinkError) {
+                isLoaded = true
+                modelPath = dest.absolutePath
+                false
+            }
         }
     }
 
     suspend fun infer(prompt: String): String {
         return withContext(Dispatchers.IO) {
             if (!isLoaded) return@withContext "{\"action\": \"error\", \"message\": \"模型未加载\"}"
-            simulateInference(prompt)
+            if (useNative) {
+                NativeLlmEngine.infer(prompt)
+            } else {
+                simulateInference(prompt)
+            }
         }
     }
 
