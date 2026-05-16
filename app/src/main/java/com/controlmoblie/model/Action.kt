@@ -1,8 +1,5 @@
 package com.controlmoblie.model
 
-import android.content.Intent
-import android.view.accessibility.AccessibilityNodeInfo
-
 sealed class Action {
     data class Click(val target: String) : Action()
     data class OpenApp(val `package`: String) : Action()
