@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">控制手机语音操作的无障碍服务</string>
+    <string name="app_name">Control Mobile</string>
+</resources>
