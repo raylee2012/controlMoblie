@@ -21,7 +21,9 @@ object ScreenReader {
             texts.add(text)
         }
         for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { collectTexts(it, texts) }
+            val child = node.getChild(i) ?: continue
+            collectTexts(child, texts)
+            child.recycle()
         }
     }
 
