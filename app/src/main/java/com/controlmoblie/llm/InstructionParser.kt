@@ -17,6 +17,14 @@ class InstructionParser {
         }
         return try {
             val json = org.json.JSONObject(trimmed)
+            val actionType = json.optString("action", "")
+            val message = json.optString("message", "")
+            if (actionType == "error" || actionType == "") {
+                return InstructionResult(
+                    action = null,
+                    error = if (message.isNotBlank()) message else "无法解析指令: $actionType"
+                )
+            }
             val action = parseAction(json)
             InstructionResult(action = action)
         } catch (e: Exception) {

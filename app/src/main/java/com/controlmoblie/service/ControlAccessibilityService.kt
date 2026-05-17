@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.util.Log
 import com.controlmoblie.model.*
+import com.controlmoblie.util.ScreenReader
 
 class ControlAccessibilityService : AccessibilityService() {
 
@@ -45,24 +46,9 @@ class ControlAccessibilityService : AccessibilityService() {
             Log.w(TAG, "updateScreenState: root is null")
             return
         }
-        val texts = mutableListOf<String>()
-        collectTexts(root, texts)
+        lastScreenState = ScreenReader.readScreen(root)
         root.recycle()
-        Log.d(TAG, "updateScreenState: collected ${texts.size} texts")
-        lastScreenState = ScreenState(
-            nodeTexts = texts,
-            packageName = packageName
-        )
-    }
-
-    private fun collectTexts(node: AccessibilityNodeInfo, texts: MutableList<String>) {
-        val text = node.text?.toString()
-        if (!text.isNullOrBlank()) texts.add(text)
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            collectTexts(child, texts)
-            child.recycle()
-        }
+        Log.d(TAG, "updateScreenState: collected ${lastScreenState.nodeTexts.size} texts")
     }
 
     fun executeAction(action: Action, onResult: (Boolean, String) -> Unit) {
