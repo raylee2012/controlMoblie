@@ -1,171 +1,171 @@
-# WeChat Voice Command Templates — Design Spec
+# 微信语音指令模板 — 设计方案
 
-Date: 2026-05-23
+日期: 2026-05-23
 
-## Summary
+## 概述
 
-Extend the voice control app to support WeChat operations (chat, moments, mini-programs, official accounts) using pre-defined command templates. Each template maps a voice command keyword to a sequence of UI actions executed via Accessibility Service with text-based node matching.
+为语音控制 App 增加微信深度操作能力（聊天、朋友圈、小程序、公众号），通过预定义的指令模板实现。每个模板将一句语音指令映射为一组 UI 自动化步骤，通过无障碍服务按文字匹配执行。
 
-## Motivation
+## 动机
 
-- Current system supports generic actions (click, open app, scroll) but has no WeChat-specific workflows
-- WeChat is the primary use case
-- Template-based approach keeps it simple, reliable, and maintainable without a large LLM
-- All UI matching uses `findAccessibilityNodeInfosByText`, version-independent
+- 当前系统支持通用动作（点击、打开应用、滑动），但没有微信专有工作流
+- 微信是核心使用场景
+- 模板方案不需要大模型，简单可靠、易于维护
+- 所有 UI 匹配基于 `findAccessibilityNodeInfosByText`，与微信版本解耦
 
-## Architecture
+## 架构
 
 ```
-User voice command
+用户语音指令
         ↓
 LlmEngine.simulateInference(userText)
         ↓
-New: matchWeChatTemplate(userText) — check BEFORE existing keyword matching
-        ↓ (if matched)
-Extract parameters from user text → build Action.Sequence
-        ↓ (if not matched)
-Fall through to existing simulateInference keyword matching
+新增: matchWeChatTemplate(userText) — 在现有关键词匹配之前检查
+        ↓ (匹配到)
+提取参数 → 生成 Action.Sequence
+        ↓ (未匹配到)
+回退到现有 simulateInference 关键词匹配
         ↓
-ExecutionEngine.execute(sequence) — each step Wait(300) between actions
+ExecutionEngine.execute(sequence) — 步骤间 Wait(300ms)
 ```
 
-No changes to `Action`, `ExecutionEngine`, `VoiceControlService`, or `InstructionParser`.
+不改动现有的 `Action`、`ExecutionEngine`、`VoiceControlService`、`InstructionParser`。
 
-## Files
+## 文件清单
 
-| File | Action | Responsibility |
-|------|--------|---------------|
-| `llm/CommandTemplates.kt` | Create | Template definitions, keyword matching, parameter extraction, Action.Sequence builder |
-| `llm/LlmEngine.kt` | Modify | Add `matchWeChatTemplate()` call before existing `when` block |
+| 文件 | 操作 | 职责 |
+|------|------|------|
+| `llm/CommandTemplates.kt` | 新增 | 模板定义、关键词匹配、参数提取、Sequence 构建 |
+| `llm/LlmEngine.kt` | 修改 | 在现有 `when` 块前增加模板匹配调用 |
 
-## CommandTemplates API
+## CommandTemplates 接口
 
 ```kotlin
 object CommandTemplates {
-    fun match(userText: String): List<Action>?  // returns steps or null if no template matches
+    fun match(userText: String): List<Action>?  // 返回步骤列表，匹配不到返回 null
 }
 ```
 
-Each template entry:
+每条模板的结构：
 ```kotlin
 data class Template(
-    val keywords: List<String>,           // ["发消息给", "给...发消息"]
-    val extractParams: (String) -> Map<String, String>?,  // → {target: "张三", text: "你好"}
+    val keywords: List<String>,           // 关键词列表，如 ["发消息给", "给...发消息"]
+    val extractParams: (String) -> Map<String, String>?,  // 返回 {target: "张三", text: "你好"}
     val buildSteps: (Map<String, String>) -> List<Action>
 )
 ```
 
-## Phase 1 Templates
+## 首批模板
 
-### 1. Send Message — 发消息
+### 1. 发消息
 
-**Voice:** "发消息给张三说你好" / "给张三发消息你好"
+**说出:** "发消息给张三说你好" / "给张三发消息你好"
 
-**Steps:**
+**步骤:**
 ```
-Wait(500)                    ← wait for WeChat to show
-Click("通讯录")              ← navigate to contacts
+Wait(500)                    ← 等微信界面就绪
+Click("通讯录")              ← 进入通讯录
 Wait(300)
-Click(targetName)            ← click contact name
+Click(targetName)            ← 点击联系人
 Wait(300)
-Type(text)                   ← type message
+Type(text)                   ← 输入消息
 Wait(300)
-Click("发送")                ← press send (may need both "发送" and resource-id match)
-```
-
-**Retry:** If "发送" not found, try clicking a send button by searching for nodes with `isClickable=true` and `contentDescription` or `text` matching "发送" or a send icon description.
-
-### 2. View Moments — 看朋友圈
-
-**Voice:** "看朋友圈"
-
-**Steps:**
-```
-Wait(500)
-Click("发现")
-Wait(300)
-Click("朋友圈")
+Click("发送")                ← 点击发送
 ```
 
-### 3. Post to Moments — 发朋友圈
+**兜底:** 如果找不到文字"发送"，尝试找 `isClickable=true` 且 `text` 或 `contentDescription` 含 "发送" 的节点，或在右下角找第一个可点击节点。
 
-**Voice:** "发朋友圈说XXX" / "发朋友圈XXX"
+### 2. 看朋友圈
 
-**Steps:**
+**说出:** "看朋友圈"
+
+**步骤:**
 ```
 Wait(500)
 Click("发现")
 Wait(300)
 Click("朋友圈")
+```
+
+### 3. 发朋友圈
+
+**说出:** "发朋友圈说XXX" / "发朋友圈XXX"
+
+**步骤:**
+```
 Wait(500)
-Click("相机" or long-press the camera icon)  ← may need resource-id based match
+Click("发现")
+Wait(300)
+Click("朋友圈")
+Wait(500)
+Click("拍照分享") or 找相机图标节点  ← 可能需要按 resource-id 匹配
 Wait(300)
 Type(text)
 Wait(300)
 Click("发表")
 ```
 
-### 4. Open Mini Program — 打开小程序
+### 4. 打开小程序
 
-**Voice:** "打开小程序XXX" / "打开XXX小程序"
+**说出:** "打开小程序XXX" / "打开XXX小程序"
 
-**Steps:**
+**步骤（主页下拉方式）:**
 ```
 Wait(500)
-Scroll("down", "short")      ← swipe down on main page to reveal mini-programs
+Scroll("down", "short")      ← 在主页下拉露出小程序列表
 Wait(300)
-Click(miniProgramName)       ← click by name
+Click(miniProgramName)       ← 按名点击
 ```
 
-**Alternative (if not recently used):**
+**备选（从发现页进）:**
 ```
 Wait(500)
 Click("发现")
 Wait(300)
 Click("小程序")
 Wait(300)
-Click(miniProgramName)       ← search/scroll if not visible
+Click(miniProgramName)       ← 如需滑动搜索则在列表里找
 ```
 
-### 5. Search Official Account — 搜索公众号
+### 5. 搜索公众号
 
-**Voice:** "搜索公众号XXX"
+**说出:** "搜索公众号XXX"
 
-**Steps:**
+**步骤:**
 ```
 Wait(500)
 Click("通讯录")
 Wait(300)
 Click("公众号")
 Wait(300)
-Click("搜索") or find search field  ← may use EditText focus
+Click("搜索") or 找到搜索输入框  ← 可能需要 EditText focus
 Wait(300)
 Type(accountName)
 Wait(500)
-Click(accountName)           ← click search result
+Click(accountName)           ← 点击搜索结果
 ```
 
-### 6. View Contact's Moments — 看XXX的朋友圈
+### 6. 看某人的朋友圈
 
-**Voice:** "看张三的朋友圈"
+**说出:** "看张三的朋友圈"
 
-**Steps:**
+**步骤:**
 ```
 Wait(500)
 Click("通讯录")
 Wait(300)
 Click("张三")
 Wait(300)
-Click("朋友圈") or the user's avatar/name area  ← may need "相册" or scroll
+Click("朋友圈") or 点击头像区域  ← 可能需要"相册"或滑动
 Wait(300)
 ```
 
-## Parameter Extraction
+## 参数提取
 
-Simple regex/keyword-based extraction. Examples:
+基于简单关键词+正则的提取规则。示例：
 
-| Input | Keywords | Extraction |
-|-------|----------|------------|
+| 输入 | 关键词 | 提取结果 |
+|------|--------|---------|
 | "发消息给张三说你好" | "发消息给" + "说" | target=张三, text=你好 |
 | "给张三发消息你好啊" | "给" + "发消息" | target=张三, text=你好啊 |
 | "发朋友圈今天天气不错" | "发朋友圈" | text=今天天气不错 |
@@ -173,29 +173,29 @@ Simple regex/keyword-based extraction. Examples:
 | "搜索公众号人民日报" | "搜索公众号" | name=人民日报 |
 | "看李四的朋友圈" | "看" + "的朋友圈" | target=李四 |
 
-## WeChat UI Matching Strategy
+## 微信 UI 匹配策略
 
-- All clicks use `findAccessibilityNodeInfosByText` with text matching
-- "发送" button may appear as:
-  - `text="发送"` (most common)
-  - `contentDescription="发送"` 
-  - A button with no text but specific resource-id (fallback: first `isClickable` node in bottom-right area)
-- "通讯录" may appear as bottom tab or in search bar (try both)
-- "发现" is a bottom tab
-- Mini-program list is below the chat list on the main WeChat page (swipe down reveals)
-- All waits use `Action.Wait` to let UI transitions settle
-- If a target text is not found within 3 seconds, the action fails with "未找到xxx"
-- Nodes are always recycled after use
+- 所有点击基于 `findAccessibilityNodeInfosByText` 文字匹配
+- "发送" 按钮可能表现为不同形式，按优先级查找：
+  1. `text="发送"`（最常见）
+  2. `contentDescription="发送"`
+  3. 无文字但有数据恢复 resource-id 的按钮
+- "通讯录" 可能出现在底部导航栏或搜索栏旁边（两种都试）
+- "发现" 是底部导航标签
+- 小程序列表在微信主页聊天列表下方（下拉露出）
+- 所有等待使用 `Action.Wait`，让界面动画和跳转完成
+- 如果某步骤找不到目标文字，3 秒内报错 "未找到xxx"
+- 所有节点使用后立即 recycle
 
-## Error Handling
+## 错误处理
 
-- Each step that fails reports a clear Chinese message: "未找到通讯录" / "未找到张三" / "发送失败"
-- Sequence stops on first failure (existing `Sequence` behavior)
-- Failure message is spoken via TTS (existing voice feedback flow)
-- User can retry the same command after fixing the state
+- 每步失败返回清晰中文："未找到通讯录" / "未找到张三" / "发送失败"
+- Sequence 遇到第一个失败即停止（现有 `Sequence` 行为）
+- 错误消息通过 TTS 播报（现有语音反馈流程）
+- 修正微信状态后可重试同一指令
 
-## Non-Goals
+## 不在范围内
 
-- No WeChat version-specific resource IDs or coordinate-based matching
-- No gesture simulation beyond single-point click and half-screen scroll
-- No multi-turn dialogue (each command is independent)
+- 不做微信版本特定的 resource-id 或坐标匹配
+- 不做单点点击和半屏滑动以外的复杂手势
+- 不做多轮对话（每条指令独立执行）
