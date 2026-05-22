@@ -41,7 +41,7 @@ class SpeechRecognizerManager(private val modelPath: String) {
             val featConfig = FeatureConfig(SAMPLE_RATE, 80, 0.0f)
 
             val modelConfig = OnlineModelConfig().apply {
-                zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelPath/model.onnx")
+                zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelPath/ctc-epoch-30-avg-3-chunk-16-left-128.onnx")
                 tokens = "$modelPath/tokens.txt"
                 numThreads = 2
                 provider = "cpu"

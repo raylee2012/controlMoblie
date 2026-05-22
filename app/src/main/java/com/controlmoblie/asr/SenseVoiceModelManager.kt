@@ -1,6 +1,8 @@
 package com.controlmoblie.asr
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,9 +17,10 @@ object SenseVoiceModelManager {
     private const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-ctc-small-2024-03-18.tar.bz2"
     private const val MODEL_DIR_NAME = "zipformer-ctc-small"
     private const val TEMP_FILE_NAME = "sense-voice-small.tar.bz2.tmp"
-    private const val MODEL_FILENAME = "model.onnx"
+    private const val MODEL_FILENAME = "ctc-epoch-30-avg-3-chunk-16-left-128.onnx"
 
     private const val TAG = "SenseVoiceModel"
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun isModelReady(context: Context): Boolean {
         val modelDir = File(context.filesDir, MODEL_DIR_NAME)
@@ -82,7 +85,9 @@ object SenseVoiceModelManager {
                 modelDir.mkdirs()
 
                 Log.d(TAG, "Starting extraction...")
-                extractTarBz2(tmpFile, modelDir)
+                extractTarBz2(tmpFile, modelDir) { fraction ->
+                    mainHandler.post { onProgress(0.75f + fraction * 0.25f) }
+                }
                 Log.d(TAG, "Extraction complete")
 
                 withContext(Dispatchers.Main) { onProgress(1f) }
@@ -96,32 +101,49 @@ object SenseVoiceModelManager {
         }
     }
 
-    private fun extractTarBz2(tarBz2File: File, destDir: File) {
+    private fun extractTarBz2(tarBz2File: File, destDir: File, onProgress: (Float) -> Unit) {
+        var entryCount = 0
         BufferedInputStream(tarBz2File.inputStream()).use { bis ->
             BZip2CompressorInputStream(bis).use { bzIn ->
                 TarArchiveInputStream(bzIn).use { tarIn ->
                     var entry = tarIn.nextTarEntry
-                    var entryCount = 0
+                    while (entry != null) {
+                        if (!entry.isDirectory && entry.name.indexOf('/') >= 0) {
+                            val relativePath = entry.name.substring(entry.name.indexOf('/') + 1)
+                            if (relativePath.isNotBlank()) entryCount++
+                        }
+                        entry = tarIn.nextTarEntry
+                    }
+                }
+            }
+        }
+        Log.d(TAG, "Total entries to extract: $entryCount")
+
+        val total = maxOf(entryCount, 1)
+        var extracted = 0
+        BufferedInputStream(tarBz2File.inputStream()).use { bis ->
+            BZip2CompressorInputStream(bis).use { bzIn ->
+                TarArchiveInputStream(bzIn).use { tarIn ->
+                    var entry = tarIn.nextTarEntry
                     while (entry != null) {
                         if (!entry.isDirectory) {
                             val entryName = entry.name
                             val slashIdx = entryName.indexOf('/')
                             val relativePath = if (slashIdx >= 0) entryName.substring(slashIdx + 1) else entryName
-                            if (relativePath.isBlank()) {
-                                entry = tarIn.nextTarEntry
-                                continue
+                            if (relativePath.isNotBlank()) {
+                                val destFile = File(destDir, relativePath)
+                                destFile.parentFile?.mkdirs()
+                                destFile.outputStream().use { out ->
+                                    tarIn.copyTo(out)
+                                }
+                                extracted++
+                                onProgress(extracted.toFloat() / total)
+                                Log.d(TAG, "Extracted: $relativePath (${destFile.length()} bytes)")
                             }
-                            val destFile = File(destDir, relativePath)
-                            destFile.parentFile?.mkdirs()
-                            destFile.outputStream().use { out ->
-                                tarIn.copyTo(out)
-                            }
-                            entryCount++
-                            Log.d(TAG, "Extracted: $relativePath (${destFile.length()} bytes)")
                         }
                         entry = tarIn.nextTarEntry
                     }
-                    Log.d(TAG, "Extracted $entryCount files to $destDir")
+                    Log.d(TAG, "Extracted $extracted files to $destDir")
                 }
             }
         }
