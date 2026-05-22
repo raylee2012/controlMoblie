@@ -70,6 +70,26 @@ class ControlAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun findClickableByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        val nodes = root.findAccessibilityNodeInfosByText(text)
+        var result: AccessibilityNodeInfo? = null
+        for (node in nodes) {
+            var current: AccessibilityNodeInfo? = node
+            while (current != null) {
+                if (current.isClickable) {
+                    result = current
+                    break
+                }
+                val parent = current.parent
+                if (current !== node) current.recycle()
+                current = parent
+            }
+            if (result != null) break
+        }
+        nodes.forEach { if (it !== result) it.recycle() }
+        return result
+    }
+
     private fun executeClick(action: Action.Click, onResult: (Boolean, String) -> Unit) {
         Log.d(TAG, "executeClick: target=${action.target}")
         val root = rootInActiveWindow
@@ -79,17 +99,16 @@ class ControlAccessibilityService : AccessibilityService() {
             return
         }
 
-        val nodes = root.findAccessibilityNodeInfosByText(action.target)
-        if (nodes.isEmpty()) {
+        val clickable = findClickableByText(root, action.target)
+        if (clickable == null) {
             Log.w(TAG, "executeClick: target '${action.target}' not found")
             root.recycle()
             onResult(false, "未找到 ${action.target}")
             return
         }
 
-        val node = nodes[0]
-        val clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        nodes.forEach { it.recycle() }
+        val clicked = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        clickable.recycle()
         root.recycle()
         Log.d(TAG, "executeClick: target=${action.target} success=$clicked")
         onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
