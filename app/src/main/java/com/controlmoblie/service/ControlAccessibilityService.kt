@@ -165,9 +165,10 @@ class ControlAccessibilityService : AccessibilityService() {
             val wm = getSystemService(android.view.WindowManager::class.java)
             val size = android.graphics.Point()
             wm?.defaultDisplay?.getSize(size)
+            val density = resources.displayMetrics.density
             val tabW = size.x / 4
             val x = tabW * tabIndex + tabW / 2
-            val y = size.y - 100  // bottom tab bar area
+            val y = size.y - (24 * density).toInt()  // center of ~48dp bottom tab bar
             Log.d(TAG, "executeClick: target=${action.target} coordinate fallback x=$x y=$y")
             performCoordinateClick(x, y) { clicked ->
                 onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
