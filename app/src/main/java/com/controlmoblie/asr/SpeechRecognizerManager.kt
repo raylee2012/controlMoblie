@@ -4,6 +4,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
@@ -14,7 +15,7 @@ import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
-import com.k2fsa.sherpa.onnx.OnlineZipformer2CtcModelConfig
+import java.io.File
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -38,10 +39,25 @@ class SpeechRecognizerManager(private val modelPath: String) {
 
     fun init(): Boolean {
         return try {
+            val dir = File(modelPath)
+            val onnxFiles = dir.listFiles { f -> f.name.endsWith(".onnx") }
+            if (onnxFiles.isNullOrEmpty()) {
+                Log.e(TAG, "No .onnx files found in $modelPath")
+                _events.trySend(AsrEvent.Error("模型文件缺失"))
+                return false
+            }
+            val encoder = onnxFiles.find { it.name.contains("encoder", ignoreCase = true) }?.absolutePath
+                ?: onnxFiles.first().absolutePath
+            val decoder = onnxFiles.find { it.name.contains("decoder", ignoreCase = true) }?.absolutePath
+                ?: onnxFiles.first().absolutePath
+            val joiner = onnxFiles.find { it.name.contains("joiner", ignoreCase = true) }?.absolutePath
+                ?: onnxFiles.first().absolutePath
+            Log.d(TAG, "encoder=$encoder, decoder=$decoder, joiner=$joiner")
+
             val featConfig = FeatureConfig(SAMPLE_RATE, 80, 0.0f)
 
             val modelConfig = OnlineModelConfig().apply {
-                zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelPath/ctc-epoch-30-avg-3-chunk-16-left-128.onnx")
+                transducer = OnlineTransducerModelConfig(encoder, decoder, joiner)
                 tokens = "$modelPath/tokens.txt"
                 numThreads = 2
                 provider = "cpu"

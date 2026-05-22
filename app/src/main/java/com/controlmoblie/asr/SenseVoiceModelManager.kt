@@ -14,22 +14,37 @@ import java.net.URL
 
 object SenseVoiceModelManager {
 
-    private const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-ctc-small-2024-03-18.tar.bz2"
-    private const val MODEL_DIR_NAME = "zipformer-ctc-small"
-    private const val TEMP_FILE_NAME = "sense-voice-small.tar.bz2.tmp"
-    private const val MODEL_FILENAME = "ctc-epoch-30-avg-3-chunk-16-left-128.onnx"
+    private const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/icefall-asr-zipformer-streaming-wenetspeech-20230615.tar.bz2"
+    private const val MODEL_DIR_NAME = "wenetspeech-zipformer"
+    private const val TEMP_FILE_NAME = "asr-model.tar.bz2.tmp"
 
     private const val TAG = "SenseVoiceModel"
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun isModelReady(context: Context): Boolean {
         val modelDir = File(context.filesDir, MODEL_DIR_NAME)
-        val modelFile = File(modelDir, MODEL_FILENAME)
-        return modelFile.exists() && modelFile.length() > 0
+        if (!modelDir.exists() || !modelDir.isDirectory) return false
+        val onnxFiles = modelDir.listFiles { f -> f.name.endsWith(".onnx") }
+        return onnxFiles != null && onnxFiles.isNotEmpty()
     }
 
-    fun getModelPath(context: Context): String {
+    fun getModelDir(context: Context): String {
         return File(context.filesDir, MODEL_DIR_NAME).absolutePath
+    }
+
+    fun getModelPath(context: Context): String = getModelDir(context)
+
+    fun getEncoderDecoderJoiner(context: Context): Triple<String, String, String>? {
+        val dir = File(context.filesDir, MODEL_DIR_NAME)
+        val files = dir.listFiles { f -> f.name.endsWith(".onnx") } ?: return null
+        val encoder = files.find { it.name.contains("encoder", ignoreCase = true) }?.absolutePath
+        val decoder = files.find { it.name.contains("decoder", ignoreCase = true) }?.absolutePath
+        val joiner = files.find { it.name.contains("joiner", ignoreCase = true) }?.absolutePath
+        if (encoder != null && decoder != null && joiner != null) {
+            return Triple(encoder, decoder, joiner)
+        }
+        val single = files.firstOrNull()
+        return if (single != null) Triple(single.absolutePath, single.absolutePath, single.absolutePath) else null
     }
 
     suspend fun downloadAndExtract(context: Context, onProgress: (Float) -> Unit): Boolean {
