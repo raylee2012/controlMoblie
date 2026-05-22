@@ -1,16 +1,16 @@
-# Llama.cpp JNI Integration Design
+# Llama.cpp JNI 集成设计
 
-## Goal
+## 目标
 
-Integrate llama.cpp source code into the Android project to enable on-device LLM inference with Qwen2.5-0.5B Q4 GGUF, replacing the current placeholder JNI scaffold with real inference.
+将 llama.cpp 源码集成到 Android 项目中，实现在设备端使用 Qwen2.5-0.5B Q4 GGUF 进行 LLM 推理，用真实推理替换当前的占位 JNI 脚手架。
 
-## Architecture
+## 架构
 
 ```
 app/src/main/jni/
-├── CMakeLists.txt              # Main CMake: compiles llama.cpp + JNI bridge
-├── llama_jni.cpp               # JNI bridge (rewrite from placeholder)
-└── llama.cpp/                  # Git submodule (latest stable release)
+├── CMakeLists.txt              # 主 CMake：编译 llama.cpp + JNI 桥接层
+├── llama_jni.cpp               # JNI 桥接层（从占位代码重写）
+└── llama.cpp/                  # Git 子模块（最新稳定版）
     ├── ggml.c / ggml.h
     ├── llama.cpp / llama.h
     ├── ggml-alloc.c/h
@@ -18,13 +18,13 @@ app/src/main/jni/
     └── ggml-cpu/
 ```
 
-## Data Flow
+## 数据流
 
 1. `LlmEngine.loadModel()` → `NativeLlmEngine.loadModel(path)` → JNI → `llama_model_load_from_file()`
-2. `LlmEngine.infer(prompt)` → `NativeLlmEngine.infer(prompt)` → JNI → tokenize → `llama_decode()` per-token generation → assemble full JSON string
+2. `LlmEngine.infer(prompt)` → `NativeLlmEngine.infer(prompt)` → JNI → 分词 → 逐 token `llama_decode()` 生成 → 组装完整 JSON 字符串
 3. `LlmEngine.unload()` → `NativeLlmEngine.unloadModel()` → JNI → `llama_model_free()` + `llama_free()`
 
-## JNI Interface (unchanged from scaffold)
+## JNI 接口（与脚手架保持一致）
 
 ```kotlin
 object NativeLlmEngine {
@@ -34,33 +34,33 @@ object NativeLlmEngine {
 }
 ```
 
-C++ side maintains global `llama_model*` and `llama_context*`:
+C++ 侧维护全局 `llama_model*` 和 `llama_context*`：
 
-- **loadModel**: `llama_model_load_from_file()` → `llama_init_from_model()`
-- **infer**: Build Qwen chat template prompt → `llama_tokenize` → token-by-token `llama_decode` with sampling → stop on `<|im_end|>` or max_tokens → return full JSON string
-- **unloadModel**: Free model and context pointers
+- **loadModel**：`llama_model_load_from_file()` → `llama_init_from_model()`
+- **infer**：构建 Qwen 聊天模板提示词 → `llama_tokenize` → 逐 token `llama_decode` 并采样 → 遇到 `<|im_end|>` 或达到 max_tokens 时停止 → 返回完整 JSON 字符串
+- **unloadModel**：释放 model 和 context 指针
 
-## Model Loading Strategy
+## 模型加载策略
 
-- Model file (~350MB) downloaded via `LlmEngine.downloadModel()` over WiFi to `context.filesDir`
-- Download uses `.tmp` intermediate file, renamed on success to prevent corruption
-- `loadModel()` runs on background thread, first load ~5-10 seconds
-- On load failure: `useNative = false`, fallback to `simulateInference()` (current behavior preserved)
+- 模型文件（约 350MB）通过 `LlmEngine.downloadModel()` 经 WiFi 下载至 `context.filesDir`
+- 下载使用 `.tmp` 临时文件，成功后重命名以防止文件损坏
+- `loadModel()` 在后台线程运行，首次加载约 5-10 秒
+- 加载失败时：`useNative = false`，回退到 `simulateInference()`（保留当前行为）
 
-## Build Configuration
+## 构建配置
 
-- CMake compiles CPU backend only (`GGML_CPU=ON`), disables CUDA/OpenCL/Vulkan/Metal
-- Target ABIs: `arm64-v8a` (primary), `armeabi-v7a`, `x86`, `x86_64`
-- Uses NDK C++ shared library (`c++_shared`)
-- `llama.cpp` added as git submodule, compiled via `add_subdirectory`
+- CMake 仅编译 CPU 后端（`GGML_CPU=ON`），禁用 CUDA/OpenCL/Vulkan/Metal
+- 目标 ABI：`arm64-v8a`（主要）、`armeabi-v7a`、`x86`、`x86_64`
+- 使用 NDK C++ 共享库（`c++_shared`）
+- `llama.cpp` 作为 git 子模块添加，通过 `add_subdirectory` 编译
 
-## Error Handling
+## 错误处理
 
-- `loadModel` failure: returns `false`, LlmEngine sets `useNative=false`, falls back to simulation
-- `infer` timeout (Kotlin side `withTimeout(5000)`): cancels coroutine, shows "推理超时"
-- OOM during model load: caught as exception, `loadModel` returns `false`
+- `loadModel` 失败：返回 `false`，LlmEngine 设置 `useNative=false`，回退到模拟推断
+- `infer` 超时（Kotlin 侧 `withTimeout(5000)`）：取消协程，显示"推理超时"
+- 模型加载期间 OOM：作为异常捕获，`loadModel` 返回 `false`
 
-## Prompt Format (Qwen2.5 Chat Template)
+## 提示词格式（Qwen2.5 聊天模板）
 
 ```
 <|im_start|>system
@@ -71,7 +71,7 @@ C++ side maintains global `llama_model*` and `llama_context*`:
 <|im_start|>assistant
 ```
 
-## Scope Boundaries
+## 范围边界
 
-- In-scope: llama.cpp source compilation, JNI bridge with real inference, model download UI integration
-- Out-of-scope: GPU acceleration, quantization at runtime, streaming token output to UI, multi-turn conversation context
+- 范围内：llama.cpp 源码编译、带真实推理的 JNI 桥接层、模型下载 UI 集成
+- 范围外：GPU 加速、运行时量化、流式 token 输出到 UI、多轮对话上下文

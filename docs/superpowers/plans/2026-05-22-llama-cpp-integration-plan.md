@@ -1,38 +1,38 @@
-# Llama.cpp JNI Integration Implementation Plan
+# Llama.cpp JNI 集成实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **面向 agentic 工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务逐步实施此计划。各步骤使用 checkbox（`- [ ]`）语法进行追踪。
 
-**Goal:** Integrate llama.cpp source code into the Android project to enable on-device LLM inference with Qwen2.5-0.5B Q4 GGUF, replacing the current placeholder JNI with real inference.
+**目标：** 将 llama.cpp 源码集成到 Android 项目中，实现在设备端使用 Qwen2.5-0.5B Q4 GGUF 进行 LLM 推理，用真实推理替换当前的占位 JNI。
 
-**Architecture:** Add llama.cpp as a git submodule under `app/src/main/jni/llama.cpp/`, compile it as a static library via CMake, and link it to the JNI bridge library. The JNI bridge (`llama_jni.cpp`) calls llama.cpp C API functions for model loading, tokenization, inference, and cleanup. Kotlin side uses existing `NativeLlmEngine` and `LlmEngine` with `useNative` flag to switch between real inference and simulateInference fallback.
+**架构：** 将 llama.cpp 作为 git 子模块添加到 `app/src/main/jni/llama.cpp/`，通过 CMake 编译为静态库，并链接到 JNI 桥接库。JNI 桥接层（`llama_jni.cpp`）调用 llama.cpp C API 函数进行模型加载、分词、推理和清理。Kotlin 侧使用现有的 `NativeLlmEngine` 和 `LlmEngine`，通过 `useNative` 标志在真实推理和 simulateInference 回退之间切换。
 
-**Tech Stack:** Kotlin, C++ (JNI), CMake, llama.cpp (latest stable b9279), Android NDK
+**技术栈：** Kotlin、C++（JNI）、CMake、llama.cpp（最新稳定版 b9279）、Android NDK
 
 ---
 
-### Task 1: Add llama.cpp as Git Submodule
+### 任务 1：将 llama.cpp 添加为 Git 子模块
 
-**Files:**
-- Modify: `.gitmodules` (new)
+**涉及文件：**
+- 修改：`.gitmodules`（新建）
 
-- [ ] **Step 1: Add llama.cpp submodule**
+- [ ] **步骤 1：添加 llama.cpp 子模块**
 
 ```bash
 cd D:\code\ai\controlMoblie
 git submodule add https://github.com/ggml-org/llama.cpp.git app/src/main/jni/llama.cpp
 ```
 
-This clones llama.cpp into `app/src/main/jni/llama.cpp/` and registers it as a submodule.
+此操作将 llama.cpp 克隆到 `app/src/main/jni/llama.cpp/` 并注册为子模块。
 
-- [ ] **Step 2: Verify submodule is present**
+- [ ] **步骤 2：验证子模块存在**
 
 ```bash
 git submodule status
 ```
 
-Expected: a line showing the llama.cpp submodule with commit hash
+预期结果：显示一行包含 llama.cpp 子模块及其 commit hash
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add .gitmodules app/src/main/jni/llama.cpp
@@ -41,15 +41,15 @@ git commit -m "chore: add llama.cpp as git submodule"
 
 
 
-### Task 2: Rewrite CMakeLists.txt to Compile llama.cpp
+### 任务 2：重写 CMakeLists.txt 以编译 llama.cpp
 
-**Files:**
-- Modify: `app/src/main/jni/CMakeLists.txt`
-- Modify: `app/build.gradle.kts`
+**涉及文件：**
+- 修改：`app/src/main/jni/CMakeLists.txt`
+- 修改：`app/build.gradle.kts`
 
-- [ ] **Step 1: Rewrite CMakeLists.txt**
+- [ ] **步骤 1：重写 CMakeLists.txt**
 
-Replace `app/src/main/jni/CMakeLists.txt` with:
+替换 `app/src/main/jni/CMakeLists.txt` 为：
 
 ```cmake
 cmake_minimum_required(VERSION 3.18)
@@ -81,9 +81,9 @@ target_include_directories(llama_jni PRIVATE
 target_link_libraries(llama_jni llama ggml log)
 ```
 
-- [ ] **Step 2: Update build.gradle.kts to add NDK filters and stl**
+- [ ] **步骤 2：更新 build.gradle.kts 添加 NDK 过滤器和 stl**
 
-Modify `app/build.gradle.kts` — add `ndk` and `stl` config inside `defaultConfig`:
+修改 `app/build.gradle.kts`——在 `defaultConfig` 内添加 `ndk` 和 `stl` 配置：
 
 ```kotlin
 android {
@@ -101,10 +101,10 @@ android {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
         }
     }
-    // ... rest unchanged ...
+    // ... 其余部分保持不变 ...
 ```
 
-And add `stl` config inside `externalNativeBuild.cmake`:
+并在 `externalNativeBuild.cmake` 内添加 `stl` 配置：
 
 ```kotlin
     externalNativeBuild {
@@ -123,7 +123,7 @@ And add `stl` config inside `externalNativeBuild.cmake`:
     }
 ```
 
-Wait — `defaultConfig` is already declared. Need to add `externalNativeBuild` inside the existing `defaultConfig` block. The full android block becomes:
+注意——`defaultConfig` 已经声明过了。需要将 `externalNativeBuild` 添加到已有的 `defaultConfig` 块内。完整的 android 块如下：
 
 ```kotlin
 android {
@@ -174,22 +174,22 @@ android {
 }
 ```
 
-- [ ] **Step 3: Verify CMake configure succeeds**
+- [ ] **步骤 3：验证 CMake 配置成功**
 
-Run: `.\gradlew :app:compileDebugKotlin`
+运行：`.\gradlew :app:compileDebugKotlin`
 
-This will trigger CMake configure. The first build will take several minutes to compile llama.cpp. Expected: BUILD SUCCESSFUL (warnings are fine).
+这将触发 CMake 配置。首次构建需要几分钟来编译 llama.cpp。预期结果：BUILD SUCCESSFUL（警告可忽略）。
 
-Note: If the build fails because llama.cpp submodule has too many source files or CMake option mismatches, we will fix CMake options in the next step. The key thing is CMake configure runs without errors.
+注意：如果因为 llama.cpp 子模块源文件过多或 CMake 选项不匹配而导致构建失败，我们将在下一步修复 CMake 选项。关键是要确保 CMake 配置运行无错误。
 
-- [ ] **Step 4: Fix any compilation errors**
+- [ ] **步骤 4：修复编译错误**
 
-llama.cpp is a large project. Common issues:
-- Missing `ggml` subdirectory: llama.cpp now includes ggml as a subdirectory, the CMakeLists.txt uses `add_subdirectory(ggml)` which should work since we add_subdirectory the whole llama.cpp
-- Option name mismatches: check the llama.cpp CMakeLists.txt for the correct option names and adjust our CMakeLists.txt accordingly
-- If compilation fails with missing headers, add the correct include paths
+llama.cpp 是一个大型项目。常见问题：
+- 缺少 `ggml` 子目录：llama.cpp 现在包含 ggml 作为子目录，CMakeLists.txt 使用 `add_subdirectory(ggml)`，由于我们对整个 llama.cpp 使用了 add_subdirectory，这应该可以正常工作
+- 选项名称不匹配：检查 llama.cpp 的 CMakeLists.txt 获取正确的选项名称，并相应调整我们的 CMakeLists.txt
+- 如果编译因缺少头文件而失败，添加正确的包含路径
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add -A
@@ -198,14 +198,14 @@ git commit -m "feat: configure CMake to compile llama.cpp as static library"
 
 
 
-### Task 3: Rewrite llama_jni.cpp with Real llama.cpp API
+### 任务 3：使用真实 llama.cpp API 重写 llama_jni.cpp
 
-**Files:**
-- Modify: `app/src/main/jni/llama_jni.cpp`
+**涉及文件：**
+- 修改：`app/src/main/jni/llama_jni.cpp`
 
-- [ ] **Step 1: Rewrite llama_jni.cpp**
+- [ ] **步骤 1：重写 llama_jni.cpp**
 
-Replace `app/src/main/jni/llama_jni.cpp` with:
+替换 `app/src/main/jni/llama_jni.cpp` 为：
 
 ```cpp
 #include <jni.h>
@@ -353,27 +353,27 @@ Java_com_controlmoblie_llm_NativeLlmEngine_unloadModel(
 }
 ```
 
-Note: The actual llama.cpp API names may differ between versions. If compilation fails, check the exact API in `llama.cpp/include/llama.h` and `ggml/include/ggml.h` for the correct function names. Key functions to verify:
+注意：实际的 llama.cpp API 名称可能因版本而异。如果编译失败，请检查 `llama.cpp/include/llama.h` 和 `ggml/include/ggml.h` 中的确切函数名称。需要验证的关键函数：
 - `llama_model_load_from_file()` vs `llama_load_model_from_file()`
 - `llama_init_from_model()` vs `llama_new_context_with_model()`
-- `llama_tokenize()` signature
-- `llama_sampler_*` vs the old `llama_sample_*` API
+- `llama_tokenize()` 的函数签名
+- `llama_sampler_*` vs 旧的 `llama_sample_*` API
 - `llama_vocab_token_eos()` vs `llama_token_eos()`
 
-- [ ] **Step 2: Fix API names if needed**
+- [ ] **步骤 2：必要时修复 API 名称**
 
-If compilation fails due to API name changes in the latest llama.cpp, check the header file at `app/src/main/jni/llama.cpp/include/llama.h` and update function names accordingly. The most common changes in recent versions:
-- Token type changed from `llama_token` (int32) to `llama_pos` / new types
-- `llama_context_params` field names may have changed
-- Sampling API may have been restructured
+如果因最新版 llama.cpp 的 API 名称变更导致编译失败，请检查 `app/src/main/jni/llama.cpp/include/llama.h` 头文件并相应更新函数名称。近期版本中最常见的变更：
+- Token 类型从 `llama_token`（int32）变更为 `llama_pos`/新类型
+- `llama_context_params` 的字段名称可能已变更
+- 采样 API 可能已重构
 
-- [ ] **Step 3: Verify compilation**
+- [ ] **步骤 3：验证编译**
 
-Run: `.\gradlew :app:compileDebugKotlin`
+运行：`.\gradlew :app:compileDebugKotlin`
 
-Expected: BUILD SUCCESSFUL (C++ compilation happens before Kotlin)
+预期结果：BUILD SUCCESSFUL（C++ 编译在 Kotlin 之前进行）
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add -A
@@ -382,15 +382,15 @@ git commit -m "feat: implement real llama.cpp JNI bridge for model loading and i
 
 
 
-### Task 4: Update LlmEngine to Use Real Inference and Add Model Download to UI
+### 任务 4：更新 LlmEngine 以使用真实推理，并为 UI 添加模型下载
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
-- Modify: `app/src/main/java/com/controlmoblie/MainActivity.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
+- 修改：`app/src/main/java/com/controlmoblie/MainActivity.kt`
 
-- [ ] **Step 1: Update LlmEngine.kt downloadModel to use IO thread for progress callback**
+- [ ] **步骤 1：更新 LlmEngine.kt 的 downloadModel 使用 IO 线程进行进度回调**
 
-In `LlmEngine.kt`, update `downloadModel()` to dispatch progress on Main thread (same fix as VoskModelManager):
+在 `LlmEngine.kt` 中，更新 `downloadModel()` 在主线程上分发进度（与 VoskModelManager 修复相同）：
 
 ```kotlin
 package com.controlmoblie.llm
@@ -528,12 +528,12 @@ class LlmEngine(private val context: Context) {
 }
 ```
 
-- [ ] **Step 2: Add LLM model load and download to VoiceControlService**
+- [ ] **步骤 2：在 VoiceControlService 中添加 LLM 模型加载和下载**
 
-In `VoiceControlService.kt`, add model loading after service starts. Add this after `overlay.setOnStopListener`:
+在 `VoiceControlService.kt` 中，在服务启动后添加模型加载。在 `overlay.setOnStopListener` 之后添加：
 
 ```kotlin
-// In onCreate(), after overlay setup:
+// 在 onCreate() 中，overlay 设置之后：
 serviceScope.launch {
     val llm = LlmEngine(this@VoiceControlService)
     if (llm.isDownloaded && !llm.isModelLoaded) {
@@ -542,9 +542,9 @@ serviceScope.launch {
 }
 ```
 
-Actually, looking at the current code, `llmEngine` is already created in `onCreate()` but never loaded. We need to add loading. Modify `VoiceControlService.kt` to load the model on service start:
+实际上，查看当前代码，`llmEngine` 已在 `onCreate()` 中创建但从未加载。我们需要添加加载逻辑。修改 `VoiceControlService.kt` 以在服务启动时加载模型：
 
-Find the `onStartCommand` method and add model loading:
+找到 `onStartCommand` 方法并添加模型加载：
 
 ```kotlin
 override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -576,27 +576,27 @@ private fun loadLlmModel() {
 }
 ```
 
-Wait — looking at its actual onCreate more carefully:
+注意——更仔细地查看其实际 onCreate：
 
 ```kotlin
 llmEngine = LlmEngine(this)
 ```
 
-And llmEngine is used in processVoiceCommand. The model needs to be loaded before inference. Let's add a `loadLlmModel()` method and call it from `initAndStart()`.
+而 llmEngine 在 processVoiceCommand 中被使用。模型需要在推理之前加载。让我们添加一个 `loadLlmModel()` 方法并从 `initAndStart()` 中调用它。
 
-- [ ] **Step 3: Verify compilation**
+- [ ] **步骤 3：验证编译**
 
-Run: `.\gradlew :app:compileDebugKotlin`
+运行：`.\gradlew :app:compileDebugKotlin`
 
-Expected: BUILD SUCCESSFUL
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 4: Full build**
+- [ ] **步骤 4：完整构建**
 
-Run: `.\gradlew :app:assembleDebug`
+运行：`.\gradlew :app:assembleDebug`
 
-Expected: BUILD SUCCESSFUL (full native compilation may take 5-10 minutes for the first build)
+预期结果：BUILD SUCCESSFUL（首次构建的完整原生编译可能需要 5-10 分钟）
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add -A
@@ -605,18 +605,18 @@ git commit -m "feat: wire up LLM model loading and fix download progress thread 
 
 
 
-### Task 5: Update InstructionParser for Qwen Chat Template
+### 任务 5：更新 InstructionParser 以适配 Qwen 聊天模板
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
 
-- [ ] **Step 1: Update buildPrompt to use Qwen2.5 chat template**
+- [ ] **步骤 1：更新 buildPrompt 以使用 Qwen2.5 聊天模板**
 
-The prompt sent to the LLM must follow Qwen2.5's chat template format (`<|im_start|>` / `<|im_end|>`) so the model generates structured JSON output. The current `buildPrompt()` just uses plain text — update it to include the system instruction and the Qwen template markers, since the JNI layer also wraps with Qwen template:
+发送给 LLM 的提示词必须遵循 Qwen2.5 的聊天模板格式（`<|im_start|>` / `<|im_end|>`），以便模型生成结构化的 JSON 输出。当前的 `buildPrompt()` 仅使用纯文本——更新它以包含系统指令和 Qwen 模板标记，因为 JNI 层也使用 Qwen 模板进行包装：
 
-Actually, looking at the design spec, the JNI `infer()` function receives the full prompt and the tokenizer will process it. But the Qwen template wrapping should happen at the Kotlin level so the simulateInference path still works. The JNI `infer` function receives a prompt string — we should send the full chat-formatted prompt.
+实际上，查看设计规范，JNI 的 `infer()` 函数接收完整提示词，分词器会处理它。但 Qwen 模板的包装应该在 Kotlin 层进行，以便 simulateInference 路径仍能正常工作。JNI 的 `infer` 函数接收一个提示词字符串——我们应该发送完整的聊天格式化提示词。
 
-Replace `InstructionParser.buildPrompt()`:
+替换 `InstructionParser.buildPrompt()`：
 
 ```kotlin
 fun buildPrompt(userText: String, screenContext: String): String {
@@ -629,13 +629,13 @@ fun buildPrompt(userText: String, screenContext: String): String {
 }
 ```
 
-- [ ] **Step 2: Verify compilation**
+- [ ] **步骤 2：验证编译**
 
-Run: `.\gradlew :app:compileDebugKotlin`
+运行：`.\gradlew :app:compileDebugKotlin`
 
-Expected: BUILD SUCCESSFUL
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -644,35 +644,35 @@ git commit -m "feat: update InstructionParser prompt to Qwen2.5 chat template fo
 
 
 
-### Task 6: End-to-End Build Verification
+### 任务 6：端到端构建验证
 
-**Files:** None (verification only)
+**涉及文件：** 无（仅验证）
 
-- [ ] **Step 1: Clean build**
+- [ ] **步骤 1：清理构建**
 
 ```bash
 .\gradlew clean :app:assembleDebug
 ```
 
-Expected: BUILD SUCCESSFUL
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 2: Verify APK contains native libraries**
+- [ ] **步骤 2：验证 APK 包含原生库**
 
 ```bash
 .\gradlew :app:assembleDebug
-# Then check the APK for libllama_jni.so and libllama.so
+# 然后检查 APK 中是否有 libllama_jni.so 和 libllama.so
 python3 -m zipfile -l app/build/outputs/apk/debug/app-debug.apk | findstr ".so"
 ```
 
-Or on Windows PowerShell:
+或在 Windows PowerShell 中：
 
 ```powershell
 Add-Type -AssemblyName System.IO.Compression.FileSystem; $apk = [System.IO.Compression.ZipFile]::OpenRead("D:\code\ai\controlMoblie\app\build\outputs\apk\debug\app-debug.apk"); $apk.Entries | Where-Object { $_.FullName -like "lib/*" } | ForEach-Object { $_.FullName }
 ```
 
-Expected: Files like `lib/arm64-v8a/libllama_jni.so`, `lib/arm64-v8a/libllama.so`, etc.
+预期结果：显示如 `lib/arm64-v8a/libllama_jni.so`、`lib/arm64-v8a/libllama.so` 等文件。
 
-- [ ] **Step 3: Commit final state**
+- [ ] **步骤 3：提交最终状态**
 
 ```bash
 git add -A
@@ -681,16 +681,16 @@ git commit -m "chore: verify end-to-end build with llama.cpp native integration"
 
 
 
-## Self-Review Checklist
+## 自检清单
 
-- [ ] Spec coverage: every section in the design spec has a corresponding task
-  - JNI bridge with real llama.cpp API → Task 3
-  - Git submodule → Task 1
-  - CMake build configuration → Task 2
-  - Model download (already exists, fixed thread safety) → Task 4
-  - InstructionParser Qwen template → Task 5
-  - End-to-end verification → Task 6
-- [ ] No placeholder code, TBD, or TODO
-- [ ] Type consistency across tasks (NativeLlmEngine methods match JNI names)
-- [ ] Each step has complete code
-- [ ] Each step has a verification command
+- [ ] 规范覆盖：设计规范中的每个章节都有对应任务
+  - 带真实 llama.cpp API 的 JNI 桥接层 → 任务 3
+  - Git 子模块 → 任务 1
+  - CMake 构建配置 → 任务 2
+  - 模型下载（已存在，修复线程安全）→ 任务 4
+  - InstructionParser Qwen 模板 → 任务 5
+  - 端到端验证 → 任务 6
+- [ ] 无占位代码、TBD 或 TODO
+- [ ] 各任务间类型一致性（NativeLlmEngine 方法名与 JNI 名称匹配）
+- [ ] 每个步骤都有完整代码
+- [ ] 每个步骤都有验证命令
