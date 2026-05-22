@@ -24,8 +24,8 @@ object SenseVoiceModelManager {
     fun isModelReady(context: Context): Boolean {
         val modelDir = File(context.filesDir, MODEL_DIR_NAME)
         if (!modelDir.exists() || !modelDir.isDirectory) return false
-        val onnxFiles = modelDir.listFiles { f -> f.name.endsWith(".onnx") }
-        return onnxFiles != null && onnxFiles.isNotEmpty()
+        val onnxFiles = modelDir.walkTopDown().filter { it.isFile && it.name.endsWith(".onnx") }.toList()
+        return onnxFiles.isNotEmpty()
     }
 
     fun getModelDir(context: Context): String {
@@ -34,9 +34,14 @@ object SenseVoiceModelManager {
 
     fun getModelPath(context: Context): String = getModelDir(context)
 
+    private fun findRecursive(dir: File, predicate: (String) -> Boolean): List<File> {
+        return dir.walkTopDown().filter { it.isFile && predicate(it.name) }.toList()
+    }
+
     fun getEncoderDecoderJoiner(context: Context): Triple<String, String, String>? {
         val dir = File(context.filesDir, MODEL_DIR_NAME)
-        val files = dir.listFiles { f -> f.name.endsWith(".onnx") } ?: return null
+        val files = findRecursive(dir) { it.endsWith(".onnx") }
+        if (files.isEmpty()) return null
         val encoder = files.find { it.name.contains("encoder", ignoreCase = true) }?.absolutePath
         val decoder = files.find { it.name.contains("decoder", ignoreCase = true) }?.absolutePath
         val joiner = files.find { it.name.contains("joiner", ignoreCase = true) }?.absolutePath
@@ -45,6 +50,12 @@ object SenseVoiceModelManager {
         }
         val single = files.firstOrNull()
         return if (single != null) Triple(single.absolutePath, single.absolutePath, single.absolutePath) else null
+    }
+
+    fun findTokensFile(context: Context): String? {
+        val dir = File(context.filesDir, MODEL_DIR_NAME)
+        val files = findRecursive(dir) { it == "tokens.txt" }
+        return files.firstOrNull()?.absolutePath
     }
 
     suspend fun downloadAndExtract(context: Context, onProgress: (Float) -> Unit): Boolean {

@@ -40,8 +40,8 @@ class SpeechRecognizerManager(private val modelPath: String) {
     fun init(): Boolean {
         return try {
             val dir = File(modelPath)
-            val onnxFiles = dir.listFiles { f -> f.name.endsWith(".onnx") }
-            if (onnxFiles.isNullOrEmpty()) {
+            val onnxFiles = dir.walkTopDown().filter { it.isFile && it.name.endsWith(".onnx") }.toList()
+            if (onnxFiles.isEmpty()) {
                 Log.e(TAG, "No .onnx files found in $modelPath")
                 _events.trySend(AsrEvent.Error("模型文件缺失"))
                 return false
@@ -54,11 +54,14 @@ class SpeechRecognizerManager(private val modelPath: String) {
                 ?: onnxFiles.first().absolutePath
             Log.d(TAG, "encoder=$encoder, decoder=$decoder, joiner=$joiner")
 
+            val tokensFile = dir.walkTopDown().find { it.isFile && it.name == "tokens.txt" }?.absolutePath
+                ?: "$modelPath/tokens.txt"
+
             val featConfig = FeatureConfig(SAMPLE_RATE, 80, 0.0f)
 
             val modelConfig = OnlineModelConfig().apply {
                 transducer = OnlineTransducerModelConfig(encoder, decoder, joiner)
-                tokens = "$modelPath/tokens.txt"
+                tokens = tokensFile
                 numThreads = 2
                 provider = "cpu"
                 debug = false
