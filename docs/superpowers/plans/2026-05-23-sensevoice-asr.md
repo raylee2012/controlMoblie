@@ -1,34 +1,34 @@
-# SenseVoiceSmall ASR Implementation Plan
+# SenseVoiceSmall ASR 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **面向 agentic worker：** 必须加载子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 来逐任务实现本计划。各步骤使用 checkbox（`- [ ]`）语法进行跟踪。
 
-**Goal:** Replace Vosk ASR with sherpa-onnx + SenseVoiceSmall model for better accented Mandarin recognition.
+**目标：** 将 Vosk ASR 替换为 sherpa-onnx + SenseVoiceSmall 模型，以提升带口音普通话的识别效果。
 
-**Architecture:** New `SenseVoiceModelManager` (download), rewritten `SpeechRecognizerManager` (sherpa-onnx OnlineRecognizer + AudioRecord polling loop), minor edits to `VoiceControlService` and `MainActivity`. AsrEvent types unchanged.
+**架构：** 新建 `SenseVoiceModelManager`（下载）、重写 `SpeechRecognizerManager`（sherpa-onnx OnlineRecognizer + AudioRecord 轮询循环）、小幅修改 `VoiceControlService` 和 `MainActivity`。AsrEvent 类型不变。
 
-**Tech Stack:** Kotlin, sherpa-onnx v1.13.2 AAR (already integrated), Android AudioRecord, Apache Commons Compress (already integrated)
-
----
-
-## File Structure
-
-| File | Action | Responsibility |
-|------|--------|---------------|
-| `asr/SenseVoiceModelManager.kt` | Create | Download & extract SenseVoiceSmall model |
-| `asr/SpeechRecognizerManager.kt` | Rewrite | sherpa-onnx OnlineRecognizer + AudioRecord |
-| `service/VoiceControlService.kt` | Modify | Point model init to SenseVoiceModelManager |
-| `MainActivity.kt` | Modify | SenseVoice download UI section |
+**技术栈：** Kotlin, sherpa-onnx v1.13.2 AAR（已集成）, Android AudioRecord, Apache Commons Compress（已集成）
 
 ---
 
-### Task 1: Create SenseVoiceModelManager
+## 文件结构
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/asr/SenseVoiceModelManager.kt`
+| 文件 | 操作 | 职责 |
+|------|------|------|
+| `asr/SenseVoiceModelManager.kt` | 新建 | 下载并解压 SenseVoiceSmall 模型 |
+| `asr/SpeechRecognizerManager.kt` | 重写 | sherpa-onnx OnlineRecognizer + AudioRecord |
+| `service/VoiceControlService.kt` | 修改 | 将模型初始化指向 SenseVoiceModelManager |
+| `MainActivity.kt` | 修改 | SenseVoice 下载 UI 区域 |
 
-- [ ] **Step 1: Write SenseVoiceModelManager**
+---
 
-Create `app/src/main/java/com/controlmoblie/asr/SenseVoiceModelManager.kt`:
+### 任务 1：创建 SenseVoiceModelManager
+
+**涉及文件：**
+- 新建：`app/src/main/java/com/controlmoblie/asr/SenseVoiceModelManager.kt`
+
+- [ ] **步骤 1：编写 SenseVoiceModelManager**
+
+创建 `app/src/main/java/com/controlmoblie/asr/SenseVoiceModelManager.kt`：
 
 ```kotlin
 package com.controlmoblie.asr
@@ -140,28 +140,28 @@ object SenseVoiceModelManager {
 }
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2：验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:compileDebugKotlin`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/asr/SenseVoiceModelManager.kt
-git commit -m "feat: add SenseVoiceModelManager for ASR model download"
+git commit -m "feat: 添加 SenseVoiceModelManager 用于 ASR 模型下载"
 ```
 
 ---
 
-### Task 2: Rewrite SpeechRecognizerManager for sherpa-onnx
+### 任务 2：重写 SpeechRecognizerManager，改用 sherpa-onnx
 
-**Files:**
-- Rewrite: `app/src/main/java/com/controlmoblie/asr/SpeechRecognizerManager.kt`
+**涉及文件：**
+- 重写：`app/src/main/java/com/controlmoblie/asr/SpeechRecognizerManager.kt`
 
-- [ ] **Step 1: Rewrite SpeechRecognizerManager with sherpa-onnx OnlineRecognizer**
+- [ ] **步骤 1：使用 sherpa-onnx OnlineRecognizer 重写 SpeechRecognizerManager**
 
-Replace entire file content:
+替换整个文件内容：
 
 ```kotlin
 package com.controlmoblie.asr
@@ -221,10 +221,10 @@ class SpeechRecognizerManager(private val modelPath: String) {
                 rule3MinUtteranceLength = 20.0f,
             )
             recognizer = OnlineRecognizer(config)
-            Log.d(TAG, "OnlineRecognizer initialized for SenseVoiceSmall")
+            Log.d(TAG, "OnlineRecognizer 已初始化，使用 SenseVoiceSmall")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load SenseVoice model", e)
+            Log.e(TAG, "加载 SenseVoice 模型失败", e)
             _events.trySend(AsrEvent.Error("模型加载失败: ${e.message}"))
             false
         }
@@ -299,7 +299,7 @@ class SpeechRecognizerManager(private val modelPath: String) {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start listening", e)
+            Log.e(TAG, "启动识别失败", e)
             _events.trySend(AsrEvent.Error("启动识别失败: ${e.message}"))
         }
     }
@@ -330,38 +330,38 @@ class SpeechRecognizerManager(private val modelPath: String) {
 }
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2：验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:compileDebugKotlin`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/asr/SpeechRecognizerManager.kt
-git commit -m "feat: rewrite SpeechRecognizerManager with sherpa-onnx OnlineRecognizer"
+git commit -m "feat: 使用 sherpa-onnx OnlineRecognizer 重写 SpeechRecognizerManager"
 ```
 
 ---
 
-### Task 3: Update VoiceControlService to use SenseVoice
+### 任务 3：更新 VoiceControlService 使用 SenseVoice
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
 
-- [ ] **Step 1: Replace Vosk import and model references**
+- [ ] **步骤 1：替换 Vosk 导入和模型引用**
 
-Remove import:
+移除 import：
 ```kotlin
 import com.controlmoblie.asr.VoskModelManager
 ```
 
-Add import:
+添加 import：
 ```kotlin
 import com.controlmoblie.asr.SenseVoiceModelManager
 ```
 
-In `initAndStart()`, change:
+在 `initAndStart()` 中，将：
 ```kotlin
 if (!VoskModelManager.isModelReady(this)) {
     overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
@@ -370,7 +370,7 @@ if (!VoskModelManager.isModelReady(this)) {
 val modelPath = VoskModelManager.getModelPath(this)
 ```
 
-To:
+改为：
 ```kotlin
 if (!SenseVoiceModelManager.isModelReady(this)) {
     overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
@@ -379,40 +379,40 @@ if (!SenseVoiceModelManager.isModelReady(this)) {
 val modelPath = SenseVoiceModelManager.getModelPath(this)
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2：验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:compileDebugKotlin`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/service/VoiceControlService.kt
-git commit -m "feat: switch VoiceControlService from Vosk to SenseVoiceSmall ASR"
+git commit -m "feat: 将 VoiceControlService 从 Vosk 切换到 SenseVoiceSmall ASR"
 ```
 
 ---
 
-### Task 4: Update MainActivity with SenseVoice download UI
+### 任务 4：更新 MainActivity，添加 SenseVoice 下载 UI
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/MainActivity.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/MainActivity.kt`
 
-- [ ] **Step 1: Add SenseVoice download section**
+- [ ] **步骤 1：添加 SenseVoice 下载区域**
 
-Add import:
+添加 import：
 ```kotlin
 import com.controlmoblie.asr.SenseVoiceModelManager
 ```
 
-Add state variables in `ControlScreen()` after existing `isDownloading`:
+在 `ControlScreen()` 中，在现有 `isDownloading` 之后添加状态变量：
 ```kotlin
 var senseVoiceModelReady by remember { mutableStateOf(SenseVoiceModelManager.isModelReady(this@MainActivity)) }
 var senseVoiceDownloadProgress by remember { mutableStateOf(-1f) }
 var senseVoiceDownloading by remember { mutableStateOf(false) }
 ```
 
-Add UI section BEFORE the existing Vosk download UI (SenseVoice is primary):
+在现有 Vosk 下载 UI 之前添加 UI 区域（SenseVoice 为主要）：
 
 ```kotlin
 if (senseVoiceDownloading) {
@@ -454,7 +454,7 @@ if (senseVoiceModelReady && !senseVoiceDownloading) {
 }
 ```
 
-Update the start button condition from `voskModelReady` to `senseVoiceModelReady`:
+将启动按钮的判定条件从 `voskModelReady` 改为 `senseVoiceModelReady`：
 ```kotlin
 if (hasOverlay && hasAudio && senseVoiceModelReady) {
     Button(
@@ -466,38 +466,38 @@ if (hasOverlay && hasAudio && senseVoiceModelReady) {
 }
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2：验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:compileDebugKotlin`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Build full APK**
+- [ ] **步骤 3：构建完整 APK**
 
-Run: `.\gradlew :app:assembleDebug`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:assembleDebug`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/MainActivity.kt
-git commit -m "feat: add SenseVoiceSmall ASR download UI, primary over Vosk"
+git commit -m "feat: 添加 SenseVoiceSmall ASR 下载 UI，优先于 Vosk"
 ```
 
 ---
 
-### Task 5: Full integration build and test
+### 任务 5：完整集成构建与测试
 
-- [ ] **Step 1: Build and verify**
+- [ ] **步骤 1：构建并验证**
 
-Run: `.\gradlew :app:assembleDebug`
-Expected: BUILD SUCCESSFUL
+执行：`.\gradlew :app:assembleDebug`
+预期结果：BUILD SUCCESSFUL
 
-- [ ] **Step 2: Commit any fixes if needed**
+- [ ] **步骤 2：如有修复需提交**
 
 ---
 
-## Self-Review
+## 自查
 
-1. **Spec coverage**: All requirements covered — model download (Task 1), engine rewrite (Task 2), service wiring (Task 3), UI (Task 4), integration test (Task 5).
-2. **Placeholder scan**: No TBD/TODO. All code shown in full.
-3. **Type consistency**: `SpeechRecognizerManager` keeps same public API (`init()`, `startListening()`, `stopListening()`, `release()`, `events`). `AsrEvent` sealed class unchanged. `VoiceControlService` only changes the model manager import and check.
+1. **规范覆盖**：所有需求已覆盖 — 模型下载（任务 1）、引擎重写（任务 2）、服务接线（任务 3）、UI（任务 4）、集成测试（任务 5）。
+2. **占位符扫描**：无 TBD/TODO。所有代码均完整展示。
+3. **类型一致性**：`SpeechRecognizerManager` 保持相同的公开 API（`init()`、`startListening()`、`stopListening()`、`release()`、`events`）。`AsrEvent` sealed class 不变。`VoiceControlService` 仅更换 model manager 的导入和检查逻辑。
