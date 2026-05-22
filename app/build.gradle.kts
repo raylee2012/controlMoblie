@@ -61,5 +61,6 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.vosk.android)
     implementation(files("libs/sherpa-onnx-1.13.2.aar"))
+    implementation(libs.commons.compress)
     debugImplementation(libs.compose.ui.tooling)
 }
