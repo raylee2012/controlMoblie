@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.util.Log
 import com.controlmoblie.model.*
+import com.controlmoblie.util.AppResolver
 import com.controlmoblie.util.ScreenReader
 
 class ControlAccessibilityService : AccessibilityService() {
@@ -82,7 +83,7 @@ class ControlAccessibilityService : AccessibilityService() {
         if (nodes.isEmpty()) {
             Log.w(TAG, "executeClick: target '${action.target}' not found")
             root.recycle()
-            onResult(false, "target '${action.target}' not found")
+            onResult(false, "未找到 ${action.target}")
             return
         }
 
@@ -91,20 +92,23 @@ class ControlAccessibilityService : AccessibilityService() {
         nodes.forEach { it.recycle() }
         root.recycle()
         Log.d(TAG, "executeClick: target=${action.target} success=$clicked")
-        onResult(clicked, if (clicked) "clicked ${action.target}" else "failed to click ${action.target}")
+        onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
     }
 
     private fun executeOpenApp(action: Action.OpenApp, onResult: (Boolean, String) -> Unit) {
-        Log.d(TAG, "executeOpenApp: package=${action.`package`}")
-        val intent = packageManager.getLaunchIntentForPackage(action.`package`)
+        val packageName = AppResolver.resolve(action.`package`)
+        Log.d(TAG, "executeOpenApp: name=${action.`package`} resolved=$packageName")
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
         if (intent == null) {
-            Log.w(TAG, "executeOpenApp: package not found ${action.`package`}")
-            onResult(false, "package ${action.`package`} not found")
+            Log.w(TAG, "executeOpenApp: package not found $packageName")
+            val displayName = action.displayName.ifBlank { action.`package` }
+            onResult(false, "未找到应用: $displayName")
             return
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
-        onResult(true, "opened ${action.`package`}")
+        val displayName = action.displayName.ifBlank { action.`package` }
+        onResult(true, "已打开 $displayName")
     }
 
     private fun executeNavigate(action: Action.Navigate, onResult: (Boolean, String) -> Unit) {
@@ -116,7 +120,12 @@ class ControlAccessibilityService : AccessibilityService() {
         }
         val success = performGlobalAction(globalAction)
         Log.d(TAG, "executeNavigate: success=$success")
-        onResult(success, if (success) "navigate ${action.type}" else "failed to navigate ${action.type}")
+        val msg = when (action.type) {
+            NavType.BACK -> if (success) "已返回" else "返回失败"
+            NavType.HOME -> if (success) "已回桌面" else "回桌面失败"
+            NavType.RECENTS -> if (success) "最近任务" else "切换失败"
+        }
+        onResult(success, msg)
     }
 
     private fun executeScroll(action: Action.Scroll, onResult: (Boolean, String) -> Unit) {
@@ -168,11 +177,17 @@ class ControlAccessibilityService : AccessibilityService() {
         dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 Log.d(TAG, "executeScroll: completed ${action.direction}")
-                onResult(true, "scrolled ${action.direction}")
+                val directionText = when (action.direction) {
+                    ScrollDirection.UP -> "上滑"
+                    ScrollDirection.DOWN -> "下滑"
+                    ScrollDirection.LEFT -> "左滑"
+                    ScrollDirection.RIGHT -> "右滑"
+                }
+                onResult(true, "已$directionText")
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 Log.w(TAG, "executeScroll: cancelled")
-                onResult(false, "scroll cancelled")
+                onResult(false, "滑动失败")
             }
         }, null)
     }
@@ -190,7 +205,7 @@ class ControlAccessibilityService : AccessibilityService() {
         if (focusNode == null) {
             Log.w(TAG, "executeType: no focused input field")
             root.recycle()
-            onResult(false, "no focused input field")
+            onResult(false, "未找到输入框")
             return
         }
 
@@ -201,7 +216,7 @@ class ControlAccessibilityService : AccessibilityService() {
         focusNode.recycle()
         root.recycle()
         Log.d(TAG, "executeType: text=${action.text} success=$success")
-        onResult(success, if (success) "typed text" else "failed to type")
+        onResult(success, if (success) "已输入" else "输入失败")
     }
 
     private fun executeSequence(action: Action.Sequence, onResult: (Boolean, String) -> Unit) {

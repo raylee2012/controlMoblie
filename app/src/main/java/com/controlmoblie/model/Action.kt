@@ -2,7 +2,7 @@ package com.controlmoblie.model
 
 sealed class Action {
     data class Click(val target: String) : Action()
-    data class OpenApp(val `package`: String) : Action()
+    data class OpenApp(val `package`: String, val displayName: String = "") : Action()
     data class Navigate(val type: NavType) : Action()
     data class Scroll(val direction: ScrollDirection, val distance: ScrollDistance = ScrollDistance.HALF) : Action()
     data class Type(val text: String) : Action()

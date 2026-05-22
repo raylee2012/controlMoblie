@@ -7,6 +7,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 
+import com.controlmoblie.util.AppResolver
+
 class LlmEngine(private val context: Context) {
 
     private var isLoaded = false
@@ -77,35 +79,46 @@ class LlmEngine(private val context: Context) {
         }
     }
 
-    suspend fun infer(prompt: String): String {
+    suspend fun infer(prompt: String, userText: String): String {
         return withContext(Dispatchers.IO) {
-            if (!isLoaded) return@withContext "{\"action\": \"error\", \"message\": \"模型未加载\"}"
+            if (!isLoaded) return@withContext simulateInference(userText)
             if (useNative) {
                 NativeLlmEngine.infer(prompt)
             } else {
-                simulateInference(prompt)
+                simulateInference(userText)
             }
         }
     }
 
-    private suspend fun simulateInference(prompt: String): String {
+    private fun simulateInference(userText: String): String {
         return when {
-            prompt.contains("返回") || prompt.contains("后退") ->
+            userText.contains("返回") || userText.contains("后退") ->
                 "{\"action\": \"navigate\", \"type\": \"back\"}"
-            prompt.contains("回到桌面") || prompt.contains("主页") ->
+            userText.contains("主页") || userText.contains("桌面") || userText.contains("主界面") ->
                 "{\"action\": \"navigate\", \"type\": \"home\"}"
-            prompt.contains("点击") -> {
-                val target = extractAfterKeyword(prompt, listOf("点击"))
+            userText.contains("最近") || userText.contains("任务") ->
+                "{\"action\": \"navigate\", \"type\": \"recents\"}"
+            userText.contains("点击") -> {
+                val target = extractAfterKeyword(userText, listOf("点击"))
                 "{\"action\": \"click\", \"target\": \"$target\"}"
             }
-            prompt.contains("打开") -> {
-                val target = extractAfterKeyword(prompt, listOf("打开"))
-                "{\"action\": \"click\", \"target\": \"$target\"}"
+            userText.contains("打开") -> {
+                val target = extractAfterKeyword(userText, listOf("打开"))
+                val pkg = AppResolver.resolve(target)
+                "{\"action\": \"open_app\", \"package\": \"$pkg\", \"displayName\": \"$target\"}"
             }
-            prompt.contains("上滑") || prompt.contains("向上滑") ->
+            userText.contains("上滑") || userText.contains("向上滑") ->
                 "{\"action\": \"scroll\", \"direction\": \"up\", \"distance\": \"half\"}"
-            prompt.contains("下滑") || prompt.contains("向下滑") ->
+            userText.contains("下滑") || userText.contains("向下滑") ->
                 "{\"action\": \"scroll\", \"direction\": \"down\", \"distance\": \"half\"}"
+            userText.contains("左滑") ->
+                "{\"action\": \"scroll\", \"direction\": \"left\", \"distance\": \"half\"}"
+            userText.contains("右滑") ->
+                "{\"action\": \"scroll\", \"direction\": \"right\", \"distance\": \"half\"}"
+            userText.contains("输入") -> {
+                val text = extractAfterKeyword(userText, listOf("输入"))
+                "{\"action\": \"type\", \"text\": \"$text\"}"
+            }
             else ->
                 "{\"action\": \"error\", \"message\": \"无法理解指令\"}"
         }
