@@ -1,27 +1,27 @@
-# Voice Control Mobile Implementation Plan
+# Voice Control Mobile 实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给自动化执行者的说明：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 来按任务逐一实施本计划。各步骤使用 checkbox（`- [ ]`）语法进行跟踪。
 
-**Goal:** Build an Android app that takes voice commands via Google SpeechRecognizer, parses them with a local LLM (Qwen2.5-0.5B), and executes operations via Accessibility Service.
+**目标：** 构建一个 Android 应用，通过 Google SpeechRecognizer 接收语音指令，使用本地 LLM（Qwen2.5-0.5B）解析指令，并通过 Accessibility Service 执行操作。
 
-**Architecture:** Single Android app with foreground service managing lifecycle. Voice → ASR → LLM → JSON → Execution Engine → Accessibility Service. UI overlay shows status.
+**架构：** 单 Android 应用，由前台服务管理生命周期。语音 → ASR → LLM → JSON → Execution Engine → Accessibility Service。UI 浮窗显示状态。
 
-**Tech Stack:** Kotlin, Jetpack Compose, Android SpeechRecognizer, llama.cpp Android port, Accessibility Service, Kotlin Coroutines.
+**技术栈：** Kotlin、Jetpack Compose、Android SpeechRecognizer、llama.cpp Android port、Accessibility Service、Kotlin Coroutines。
 
 ---
 
-### Task 1: Project Scaffolding
+### 任务 1：项目脚手架
 
-**Files:**
-- Create: `app/build.gradle.kts`
-- Create: `settings.gradle.kts`
-- Create: `gradle.properties`
-- Create: `gradle/libs.versions.toml`
-- Create: `app/src/main/AndroidManifest.xml`
-- Create: `app/src/main/java/com/controlmoblie/ControlMoblieApp.kt`
-- Create: `app/src/main/java/com/controlmoblie/MainActivity.kt`
+**涉及文件：**
+- 创建：`app/build.gradle.kts`
+- 创建：`settings.gradle.kts`
+- 创建：`gradle.properties`
+- 创建：`gradle/libs.versions.toml`
+- 创建：`app/src/main/AndroidManifest.xml`
+- 创建：`app/src/main/java/com/controlmoblie/ControlMoblieApp.kt`
+- 创建：`app/src/main/java/com/controlmoblie/MainActivity.kt`
 
-- [ ] **Step 1: Create settings.gradle.kts**
+- [ ] **步骤 1：创建 settings.gradle.kts**
 
 ```kotlin
 pluginManagement {
@@ -42,7 +42,7 @@ rootProject.name = "controlMoblie"
 include(":app")
 ```
 
-- [ ] **Step 2: Create gradle/libs.versions.toml**
+- [ ] **步骤 2：创建 gradle/libs.versions.toml**
 
 ```toml
 [versions]
@@ -68,7 +68,7 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ```
 
-- [ ] **Step 3: Create app/build.gradle.kts**
+- [ ] **步骤 3：创建 app/build.gradle.kts**
 
 ```kotlin
 plugins {
@@ -118,7 +118,7 @@ dependencies {
 }
 ```
 
-- [ ] **Step 4: Create gradle.properties**
+- [ ] **步骤 4：创建 gradle.properties**
 
 ```properties
 org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
@@ -127,7 +127,7 @@ kotlin.code.style=official
 android.nonTransitiveRClass=true
 ```
 
-- [ ] **Step 5: Create AndroidManifest.xml**
+- [ ] **步骤 5：创建 AndroidManifest.xml**
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -178,7 +178,7 @@ android.nonTransitiveRClass=true
 </manifest>
 ```
 
-- [ ] **Step 6: Create ControlMoblieApp.kt**
+- [ ] **步骤 6：创建 ControlMoblieApp.kt**
 
 ```kotlin
 package com.controlmoblie
@@ -192,7 +192,7 @@ class ControlMoblieApp : Application() {
 }
 ```
 
-- [ ] **Step 7: Create MainActivity.kt**
+- [ ] **步骤 7：创建 MainActivity.kt**
 
 ```kotlin
 package com.controlmoblie
@@ -218,9 +218,9 @@ class MainActivity : ComponentActivity() {
 }
 ```
 
-- [ ] **Step 8: Create accessibility service config**
+- [ ] **步骤 8：创建 Accessibility Service 配置文件**
 
-Create: `app/src/main/res/xml/accessibility_service_config.xml`
+创建：`app/src/main/res/xml/accessibility_service_config.xml`
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -234,7 +234,7 @@ Create: `app/src/main/res/xml/accessibility_service_config.xml`
     android:description="@string/accessibility_service_description" />
 ```
 
-Create: `app/src/main/res/values/strings.xml`
+创建：`app/src/main/res/values/strings.xml`
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -244,19 +244,19 @@ Create: `app/src/main/res/values/strings.xml`
 </resources>
 ```
 
-- [ ] **Step 9: Verify project builds**
+- [ ] **步骤 9：验证项目能否编译**
 
-Run: `./gradlew :app:assembleDebug`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:assembleDebug`
+预期：BUILD SUCCESSFUL
 
 
 
-### Task 2: Action Data Models
+### 任务 2：Action 数据模型
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/model/Action.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/model/Action.kt`
 
-- [ ] **Step 1: Write Action.kt**
+- [ ] **步骤 1：编写 Action.kt**
 
 ```kotlin
 package com.controlmoblie.model
@@ -289,12 +289,12 @@ data class ScreenState(
 )
 ```
 
-- [ ] **Step 2: Verify file compiles**
+- [ ] **步骤 2：验证文件能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git init
@@ -304,13 +304,13 @@ git commit -m "feat: project scaffold and action models"
 
 
 
-### Task 3: Accessibility Service
+### 任务 3：Accessibility Service
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt`
-- Modify: `app/src/main/java/com/controlmoblie/model/Action.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt`
+- 修改：`app/src/main/java/com/controlmoblie/model/Action.kt`
 
-- [ ] **Step 1: Write ControlAccessibilityService.kt**
+- [ ] **步骤 1：编写 ControlAccessibilityService.kt**
 
 ```kotlin
 package com.controlmoblie.service
@@ -500,12 +500,12 @@ class ControlAccessibilityService : AccessibilityService() {
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -514,12 +514,12 @@ git commit -m "feat: add accessibility service with action execution"
 
 
 
-### Task 4: Screen Reader Module
+### 任务 4：Screen Reader 模块
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/util/ScreenReader.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/util/ScreenReader.kt`
 
-- [ ] **Step 1: Write ScreenReader.kt**
+- [ ] **步骤 1：编写 ScreenReader.kt**
 
 ```kotlin
 package com.controlmoblie.util
@@ -561,12 +561,12 @@ object ScreenReader {
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -575,12 +575,12 @@ git commit -m "feat: add screen reader module"
 
 
 
-### Task 5: ASR Module (Speech Recognizer)
+### 任务 5：ASR 模块（语音识别）
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/asr/SpeechRecognizerManager.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/asr/SpeechRecognizerManager.kt`
 
-- [ ] **Step 1: Write SpeechRecognizerManager.kt**
+- [ ] **步骤 1：编写 SpeechRecognizerManager.kt**
 
 ```kotlin
 package com.controlmoblie.asr
@@ -671,12 +671,12 @@ class SpeechRecognizerManager(private val context: Context) {
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -685,13 +685,13 @@ git commit -m "feat: add speech recognizer manager"
 
 
 
-### Task 6: LLM Engine + Instruction Parser
+### 任务 6：LLM 引擎 + 指令解析器
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
-- Create: `app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
+- 创建：`app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
 
-- [ ] **Step 1: Write LlmEngine.kt**
+- [ ] **步骤 1：编写 LlmEngine.kt**
 
 ```kotlin
 package com.controlmoblie.llm
@@ -809,7 +809,7 @@ class LlmEngine(private val context: Context) {
 }
 ```
 
-- [ ] **Step 2: Write InstructionParser.kt**
+- [ ] **步骤 2：编写 InstructionParser.kt**
 
 ```kotlin
 package com.controlmoblie.llm
@@ -885,12 +885,12 @@ $screenContext
 }
 ```
 
-- [ ] **Step 3: Verify compiles**
+- [ ] **步骤 3：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add -A
@@ -899,12 +899,12 @@ git commit -m "feat: add LLM engine and instruction parser"
 
 
 
-### Task 7: Execution Engine
+### 任务 7：Execution Engine
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/execution/ExecutionEngine.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/execution/ExecutionEngine.kt`
 
-- [ ] **Step 1: Write ExecutionEngine.kt**
+- [ ] **步骤 1：编写 ExecutionEngine.kt**
 
 ```kotlin
 package com.controlmoblie.execution
@@ -943,12 +943,12 @@ class ExecutionEngine(private val accessibilityService: ControlAccessibilityServ
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -957,12 +957,12 @@ git commit -m "feat: add execution engine"
 
 
 
-### Task 8: UI Overlay (Floating Window)
+### 任务 8：UI 浮窗（悬浮窗）
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/overlay/ControlOverlay.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/overlay/ControlOverlay.kt`
 
-- [ ] **Step 1: Write ControlOverlay.kt**
+- [ ] **步骤 1：编写 ControlOverlay.kt**
 
 ```kotlin
 package com.controlmoblie.overlay
@@ -1130,12 +1130,12 @@ class ControlOverlay(private val context: Context) {
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -1144,12 +1144,12 @@ git commit -m "feat: add floating overlay UI"
 
 
 
-### Task 9: Voice Control Service (Foreground Service)
+### 任务 9：Voice Control Service（前台服务）
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
+**涉及文件：**
+- 创建：`app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
 
-- [ ] **Step 1: Write VoiceControlService.kt**
+- [ ] **步骤 1：编写 VoiceControlService.kt**
 
 ```kotlin
 package com.controlmoblie.service
@@ -1340,12 +1340,12 @@ class VoiceControlService : Service() {
 }
 ```
 
-- [ ] **Step 2: Update ControlAccessibilityService to register with VoiceControlService**
+- [ ] **步骤 2：更新 ControlAccessibilityService 以注册到 VoiceControlService**
 
-In `ControlAccessibilityService.kt`, add:
+在 `ControlAccessibilityService.kt` 中添加：
 
 ```kotlin
-// At the top of the class
+// 在类顶部添加
 private var voiceService: VoiceControlService? = null
 
 fun registerVoiceService(service: VoiceControlService) {
@@ -1353,12 +1353,12 @@ fun registerVoiceService(service: VoiceControlService) {
 }
 ```
 
-- [ ] **Step 3: Verify compiles**
+- [ ] **步骤 3：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add -A
@@ -1367,13 +1367,13 @@ git commit -m "feat: add voice control foreground service"
 
 
 
-### Task 10: MainActivity Wiring
+### 任务 10：MainActivity 接入
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/MainActivity.kt`
-- Create: `app/src/main/java/com/controlmoblie/overlay/PermissionHelper.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/MainActivity.kt`
+- 创建：`app/src/main/java/com/controlmoblie/overlay/PermissionHelper.kt`
 
-- [ ] **Step 1: Write PermissionHelper.kt**
+- [ ] **步骤 1：编写 PermissionHelper.kt**
 
 ```kotlin
 package com.controlmoblie.overlay
@@ -1415,7 +1415,7 @@ object PermissionHelper {
 }
 ```
 
-- [ ] **Step 2: Rewrite MainActivity.kt**
+- [ ] **步骤 2：重写 MainActivity.kt**
 
 ```kotlin
 package com.controlmoblie
@@ -1583,12 +1583,12 @@ class MainActivity : ComponentActivity() {
 }
 ```
 
-- [ ] **Step 3: Verify compiles**
+- [ ] **步骤 3：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add -A
@@ -1597,14 +1597,14 @@ git commit -m "feat: add main activity with permission handling"
 
 
 
-### Task 11: llama.cpp JNI Integration
+### 任务 11：llama.cpp JNI 集成
 
-**Files:**
-- Create: `app/src/main/jni/llama_jni.cpp`
-- Create: `app/src/main/java/com/controlmoblie/llm/NativeLlmEngine.kt`
-- Modify: `app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
+**涉及文件：**
+- 创建：`app/src/main/jni/llama_jni.cpp`
+- 创建：`app/src/main/java/com/controlmoblie/llm/NativeLlmEngine.kt`
+- 修改：`app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
 
-- [ ] **Step 1: Write NativeLlmEngine.kt**
+- [ ] **步骤 1：编写 NativeLlmEngine.kt**
 
 ```kotlin
 package com.controlmoblie.llm
@@ -1620,10 +1620,10 @@ object NativeLlmEngine {
 }
 ```
 
-- [ ] **Step 2: Modify LlmEngine.kt to use native when available**
+- [ ] **步骤 2：修改 LlmEngine.kt 以在可用时使用原生引擎**
 
 ```kotlin
-// In LlmEngine.infer(), replace simulateInference with:
+// 在 LlmEngine 中：
 private var useNative = false
 
 suspend fun loadModel(): Boolean {
@@ -1636,7 +1636,7 @@ suspend fun loadModel(): Boolean {
             modelPath = dest.absolutePath
             useNative
         } catch (e: UnsatisfiedLinkError) {
-            // Fall back to simulation if native lib not available
+            // 如果原生库不可用，降级到模拟推理
             isLoaded = true
             modelPath = dest.absolutePath
             false
@@ -1656,9 +1656,9 @@ suspend fun infer(prompt: String): String {
 }
 ```
 
-- [ ] **Step 3: Create placeholder JNI C++ file**
+- [ ] **步骤 3：创建占位 JNI C++ 文件**
 
-Create `app/src/main/jni/llama_jni.cpp`:
+创建 `app/src/main/jni/llama_jni.cpp`：
 
 ```cpp
 #include <jni.h>
@@ -1670,7 +1670,7 @@ Java_com_controlmoblie_llm_NativeLlmEngine_loadModel(
     jobject /*this*/,
     jstring modelPath) {
     const char* path = env->GetStringUTFChars(modelPath, nullptr);
-    // llama.cpp model loading will go here
+    // llama.cpp 模型加载代码将在此处实现
     env->ReleaseStringUTFChars(modelPath, path);
     return JNI_TRUE;
 }
@@ -1690,11 +1690,11 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_controlmoblie_llm_NativeLlmEngine_unloadModel(
     JNIEnv* env,
     jobject /*this*/) {
-    // Model cleanup will go here
+    // 模型清理代码将在此处实现
 }
 ```
 
-Create `app/src/main/jni/CMakeLists.txt`:
+创建 `app/src/main/jni/CMakeLists.txt`：
 
 ```cmake
 cmake_minimum_required(VERSION 3.22)
@@ -1705,9 +1705,9 @@ find_library(log-lib log)
 target_link_libraries(llama ${log-lib})
 ```
 
-- [ ] **Step 4: Update app/build.gradle.kts to include native build**
+- [ ] **步骤 4：更新 app/build.gradle.kts 以包含原生构建**
 
-Add inside `android {}` block:
+在 `android {}` 块中添加：
 
 ```kotlin
 externalNativeBuild {
@@ -1718,12 +1718,12 @@ externalNativeBuild {
 }
 ```
 
-- [ ] **Step 5: Verify compiles**
+- [ ] **步骤 5：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6：提交**
 
 ```bash
 git add -A
@@ -1732,14 +1732,14 @@ git commit -m "feat: add llama.cpp JNI integration scaffold"
 
 
 
-### Task 12: Model Download UI
+### 任务 12：模型下载 UI
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/MainActivity.kt`
+**涉及文件：**
+- 修改：`app/src/main/java/com/controlmoblie/MainActivity.kt`
 
-- [ ] **Step 1: Add model download state and UI to MainActivity**
+- [ ] **步骤 1：在 MainActivity 中添加模型下载状态和 UI**
 
-Add this composable to `ControlScreen`:
+在 `ControlScreen` 中添加以下 Composable：
 
 ```kotlin
 var downloadProgress by remember { mutableStateOf(-1f) }
@@ -1757,7 +1757,7 @@ if (!modelReady && downloadProgress >= 0f) {
 if (!modelReady && downloadProgress < 0f) {
     Button(
         onClick = {
-            // Trigger download via LlmEngine
+            // 通过 LlmEngine 触发下载
         },
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1766,12 +1766,12 @@ if (!modelReady && downloadProgress < 0f) {
 }
 ```
 
-- [ ] **Step 2: Verify compiles**
+- [ ] **步骤 2：验证能否编译**
 
-Run: `./gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+执行：`./gradlew :app:compileDebugKotlin`
+预期：BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add -A
@@ -1780,19 +1780,19 @@ git commit -m "feat: add model download UI"
 
 
 
-## Self-Review Checklist
+## 自查清单
 
-- [ ] Spec coverage: every section in the spec has a corresponding task
-  - Architecture (Task 1, 9) ✓
-  - Voice Wake + ASR (Task 5) ✓
-  - LLM Engine (Task 6, 11) ✓
-  - Instruction Parser (Task 6) ✓
-  - Execution Engine (Task 7) ✓
-  - Accessibility Service (Task 3) ✓
-  - UI Overlay (Task 8) ✓
-  - Permissions (Task 10) ✓
-  - Model Download (Task 12) ✓
-- [ ] No placeholder code, TBD, or TODO
-- [ ] Type consistency across tasks
-- [ ] Each step has complete code
-- [ ] Each step has a verification command
+- [ ] 规格覆盖：规格中的每个章节都有对应的任务
+  - 架构（任务 1、9）✓
+  - 语音唤醒 + ASR（任务 5）✓
+  - LLM 引擎（任务 6、11）✓
+  - 指令解析器（任务 6）✓
+  - 执行引擎（任务 7）✓
+  - Accessibility Service（任务 3）✓
+  - UI 浮窗（任务 8）✓
+  - 权限管理（任务 10）✓
+  - 模型下载（任务 12）✓
+- [ ] 无占位代码、TBD 或 TODO
+- [ ] 跨任务的类型一致性
+- [ ] 每个步骤都有完整代码
+- [ ] 每个步骤都有验证命令
