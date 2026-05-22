@@ -41,7 +41,7 @@ class SpeechRecognizerManager(private val modelPath: String) {
             val featConfig = FeatureConfig(SAMPLE_RATE, 80, 0.0f)
 
             val modelConfig = OnlineModelConfig().apply {
-                paraformer = OnlineParaformerModelConfig("$modelPath/model.onnx")
+                paraformer = OnlineParaformerModelConfig("$modelPath/model.int8.onnx")
                 tokens = "$modelPath/tokens.txt"
                 numThreads = 2
                 provider = "cpu"
