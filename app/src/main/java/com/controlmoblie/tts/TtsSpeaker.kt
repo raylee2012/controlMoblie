@@ -109,9 +109,9 @@ class TtsSpeaker(private val context: Context) {
                     if (isSpeaking) 1 else 0
                 }
 
-                while (track.playState == AudioTrack.PLAYSTATE_PLAYING && track.playbackHeadPosition < totalFrames) {
-                    Thread.sleep(50)
-                }
+                // Wait for playback: calculate duration from total frames instead of polling
+                val playDurationMs = totalFrames * 1000L / sampleRate + 200
+                Thread.sleep(playDurationMs)
 
                 track.stop()
                 track.release()
