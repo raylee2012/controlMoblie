@@ -17,6 +17,7 @@ class TtsSpeaker(private val context: Context) {
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
     private var isSpeaking = false
+    private var isInitialized = false
 
     companion object {
         private const val TAG = "TtsSpeaker"
@@ -45,6 +46,7 @@ class TtsSpeaker(private val context: Context) {
                 ruleFsts = "$modelDir/phone.fst,$modelDir/date.fst,$modelDir/number.fst",
             )
             tts = OfflineTts(config = config)
+            isInitialized = true
             Log.d(TAG, "TTS initialized, sampleRate=${tts?.sampleRate()}, speakers=${tts?.numSpeakers()}")
             true
         } catch (e: Exception) {
@@ -137,7 +139,8 @@ class TtsSpeaker(private val context: Context) {
         audioTrack = null
         tts?.release()
         tts = null
+        isInitialized = false
     }
 
-    val isModelReady: Boolean get() = TtsModelManager.isModelReady(context)
+    val isModelReady: Boolean get() = TtsModelManager.isModelReady(context) && isInitialized
 }
