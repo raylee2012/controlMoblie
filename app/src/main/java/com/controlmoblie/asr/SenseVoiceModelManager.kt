@@ -11,8 +11,8 @@ import java.net.URL
 
 object SenseVoiceModelManager {
 
-    private const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-small-zh-en-ja-ko-yue-2025-03-27.tar.bz2"
-    private const val MODEL_DIR_NAME = "sense-voice-small-onnx"
+    private const val MODEL_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-paraformer-zh-small-2024-03-09.tar.bz2"
+    private const val MODEL_DIR_NAME = "paraformer-zh-small"
     private const val TEMP_FILE_NAME = "sense-voice-small.tar.bz2.tmp"
     private const val MODEL_FILENAME = "model.onnx"
 

@@ -17,8 +17,44 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
 
 enum class OverlayState { IDLE, LISTENING, PROCESSING, EXECUTING, ERROR }
+
+private class OverlayLifecycleOwner : SavedStateRegistryOwner {
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
+
+    fun handleLifecycleEvent(event: Lifecycle.Event) {
+        lifecycleRegistry.handleLifecycleEvent(event)
+    }
+
+    fun performRestore() {
+        savedStateRegistryController.performRestore(null)
+    }
+}
+
+private val TAG_LIFECYCLE_OWNER = com.controlmoblie.R.id.view_tree_lifecycle_owner
+private val TAG_SAVED_STATE_OWNER = com.controlmoblie.R.id.view_tree_saved_state_registry_owner
+
+private fun setLifecycleOwner(view: View, owner: LifecycleOwner) {
+    view.setTag(TAG_LIFECYCLE_OWNER, owner)
+}
+
+private fun setSavedStateOwner(view: View, owner: SavedStateRegistryOwner) {
+    view.setTag(TAG_SAVED_STATE_OWNER, owner)
+}
 
 class ControlOverlay(private val context: Context) {
 
@@ -26,6 +62,7 @@ class ControlOverlay(private val context: Context) {
         context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: FrameLayout? = null
     private var isShowing = false
+    private var lifecycleOwner: OverlayLifecycleOwner? = null
 
     private var _state by mutableStateOf(OverlayState.IDLE)
     private var _lastText by mutableStateOf("")
@@ -52,29 +89,43 @@ class ControlOverlay(private val context: Context) {
         params.x = 50
         params.y = 200
 
-        overlayView = FrameLayout(context)
-        overlayView?.addView(
-            ComposeView(context).apply {
-                setContent {
-                    OverlayContent(
-                        state = _state,
-                        lastText = _lastText,
-                        lastResult = _lastResult,
-                        onToggle = { onToggleListener?.invoke() },
-                        onStop = { onStopListener?.invoke() }
-                    )
-                }
-            },
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        windowManager.addView(overlayView, params)
+        val owner = OverlayLifecycleOwner()
+        owner.performRestore()
+        owner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        owner.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        owner.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        lifecycleOwner = owner
+
+        val frame = FrameLayout(context)
+        setLifecycleOwner(frame, owner)
+        setSavedStateOwner(frame, owner)
+
+        val composeView = ComposeView(context)
+        setLifecycleOwner(composeView, owner)
+        setSavedStateOwner(composeView, owner)
+        composeView.setContent {
+            OverlayContent(
+                state = _state,
+                lastText = _lastText,
+                lastResult = _lastResult,
+                onToggle = { onToggleListener?.invoke() },
+                onStop = { onStopListener?.invoke() }
+            )
+        }
+
+        frame.addView(composeView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        overlayView = frame
+        windowManager.addView(frame, params)
         isShowing = true
     }
 
     fun dismiss() {
         if (!isShowing) return
         overlayView?.let { windowManager.removeView(it) }
+        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        lifecycleOwner?.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        lifecycleOwner = null
         overlayView = null
         isShowing = false
     }

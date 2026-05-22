@@ -3,16 +3,17 @@ package com.controlmoblie.execution
 import com.controlmoblie.model.Action
 import com.controlmoblie.service.ControlAccessibilityService
 
-class ExecutionEngine(private val accessibilityService: ControlAccessibilityService?) {
+class ExecutionEngine {
 
     data class ExecutionResult(val success: Boolean, val message: String)
 
     fun execute(action: Action, onResult: (ExecutionResult) -> Unit) {
-        if (accessibilityService == null) {
+        val service = ControlAccessibilityService.instance
+        if (service == null) {
             onResult(ExecutionResult(false, "无障碍服务未连接"))
             return
         }
-        accessibilityService.executeAction(action) { success, msg ->
+        service.executeAction(action) { success, msg ->
             onResult(ExecutionResult(success, msg))
         }
     }
