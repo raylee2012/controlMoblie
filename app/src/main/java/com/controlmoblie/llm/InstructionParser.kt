@@ -67,22 +67,11 @@ class InstructionParser {
     }
 
     fun buildPrompt(userText: String, screenContext: String): String {
-        return """
-你是一个手机语音助手。请将用户的语音指令解析为 JSON 格式的操作。
-
-当前屏幕信息:
-$screenContext
-
-用户指令: $userText
-
-请只输出 JSON，不要输出其他内容。JSON 格式说明:
-- 点击: {"action": "click", "target": "目标文本"}
-- 打开App: {"action": "open_app", "package": "包名"}
-- 导航: {"action": "navigate", "type": "back|home|recents"}
-- 滑动: {"action": "scroll", "direction": "up|down|left|right", "distance": "short|half|full"}
-- 输入: {"action": "type", "text": "输入内容"}
-- 等待: {"action": "wait", "ms": 毫秒数}
-- 组合: {"action": "sequence", "steps": [...]}
-""".trimIndent()
+        val systemMsg = if (screenContext.isNotBlank()) {
+            "你是一个手机语音助手。请将用户的语音指令解析为 JSON 格式的操作。\n\n当前屏幕信息:\n$screenContext"
+        } else {
+            "你是一个手机语音助手。请将用户的语音指令解析为 JSON 格式的操作。"
+        }
+        return "<|im_start|>system\n$systemMsg\n请只输出 JSON，不要输出其他内容。JSON 格式说明:\n- 点击: {\"action\": \"click\", \"target\": \"目标文本\"}\n- 打开App: {\"action\": \"open_app\", \"package\": \"包名\"}\n- 导航: {\"action\": \"navigate\", \"type\": \"back|home|recents\"}\n- 滑动: {\"action\": \"scroll\", \"direction\": \"up|down|left|right\", \"distance\": \"short|half|full\"}\n- 输入: {\"action\": \"type\", \"text\": \"输入内容\"}\n- 等待: {\"action\": \"wait\", \"ms\": 毫秒数}\n- 组合: {\"action\": \"sequence\", \"steps\": [...]}<|im_end|>\n<|im_start|>user\n$userText<|im_end|>\n<|im_start|>assistant\n"
     }
 }

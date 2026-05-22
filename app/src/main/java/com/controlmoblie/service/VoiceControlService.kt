@@ -31,6 +31,10 @@ class VoiceControlService : Service() {
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "voice_control_channel"
 
+    companion object {
+        private const val TAG = "VoiceControlService"
+    }
+
     override fun onCreate() {
         super.onCreate()
         llmEngine = LlmEngine(this)
@@ -70,7 +74,22 @@ class VoiceControlService : Service() {
         }
         asrManager = manager
         executionEngine = ExecutionEngine(ControlAccessibilityService.instance)
+        loadLlmModel()
         startListening()
+    }
+
+    private fun loadLlmModel() {
+        serviceScope.launch {
+            if (llmEngine.isDownloaded && !llmEngine.isModelLoaded) {
+                overlay.updateState(OverlayState.PROCESSING, result = "加载推理模型...")
+                val success = llmEngine.loadModel()
+                if (success) {
+                    Log.d(TAG, "LLM model loaded successfully")
+                } else {
+                    Log.w(TAG, "LLM model load failed, using simulateInference fallback")
+                }
+            }
+        }
     }
 
     private fun startListening() {
@@ -174,6 +193,7 @@ class VoiceControlService : Service() {
         serviceScope.cancel()
         asrManager?.release()
         asrManager = null
+        llmEngine.unload()
         overlay.dismiss()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
