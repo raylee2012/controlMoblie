@@ -14,6 +14,8 @@ import com.controlmoblie.llm.InstructionParser
 import com.controlmoblie.llm.LlmEngine
 import com.controlmoblie.overlay.ControlOverlay
 import com.controlmoblie.overlay.OverlayState
+import com.controlmoblie.tts.TtsModelManager
+import com.controlmoblie.tts.TtsSpeaker
 import com.controlmoblie.util.ScreenReader
 import kotlinx.coroutines.*
 
@@ -25,6 +27,7 @@ class VoiceControlService : Service() {
     private lateinit var parser: InstructionParser
     private lateinit var executionEngine: ExecutionEngine
     private lateinit var overlay: ControlOverlay
+    private lateinit var ttsSpeaker: TtsSpeaker
     private var isRunning = false
     private var listenJob: Job? = null
 
@@ -40,7 +43,8 @@ class VoiceControlService : Service() {
         llmEngine = LlmEngine(this)
         parser = InstructionParser()
         overlay = ControlOverlay(this)
-        executionEngine = ExecutionEngine(ControlAccessibilityService.instance)
+        executionEngine = ExecutionEngine()
+        ttsSpeaker = TtsSpeaker(this)
 
         overlay.setOnToggleListener { toggleListening() }
         overlay.setOnStopListener { stopSelf() }
@@ -73,8 +77,8 @@ class VoiceControlService : Service() {
             return
         }
         asrManager = manager
-        executionEngine = ExecutionEngine(ControlAccessibilityService.instance)
         loadLlmModel()
+        loadTtsModel()
         startListening()
     }
 
@@ -88,6 +92,32 @@ class VoiceControlService : Service() {
                 } else {
                     Log.w(TAG, "LLM model load failed, using simulateInference fallback")
                 }
+            }
+        }
+    }
+
+    private fun loadTtsModel() {
+        serviceScope.launch {
+            if (TtsModelManager.isModelReady(this@VoiceControlService) && !ttsSpeaker.isModelReady) {
+                overlay.updateState(OverlayState.PROCESSING, result = "加载语音合成...")
+                val success = ttsSpeaker.init()
+                if (success) {
+                    Log.d(TAG, "TTS model loaded successfully")
+                } else {
+                    Log.w(TAG, "TTS model load failed")
+                }
+            }
+        }
+    }
+
+    private suspend fun speakResult(text: String) {
+        if (text.isBlank()) return
+        if (!ttsSpeaker.isModelReady) return
+        asrManager?.stopListening()
+        ttsSpeaker.speak(text) {
+            serviceScope.launch {
+                delay(500)
+                if (isRunning) startListening()
             }
         }
     }
@@ -128,45 +158,46 @@ class VoiceControlService : Service() {
         val prompt = parser.buildPrompt(userText, screenContext)
 
         try {
-            val llmOutput = withTimeout(5000) { llmEngine.infer(prompt) }
+            val llmOutput = withTimeout(5000) { llmEngine.infer(prompt, userText) }
             val result = parser.parse(llmOutput)
 
             if (result.error != null) {
                 overlay.updateState(OverlayState.ERROR, text = userText, result = result.error)
-                delay(1500)
-                if (isRunning) startListening()
+                speakResult(result.error ?: "解析失败")
                 return
             }
 
             val action = result.action
             if (action == null) {
                 overlay.updateState(OverlayState.ERROR, text = userText, result = "无法解析指令")
-                delay(1500)
-                if (isRunning) startListening()
+                speakResult("无法解析指令")
                 return
             }
 
             overlay.updateState(OverlayState.EXECUTING, text = userText)
             executionEngine.execute(action) { execResult ->
                 serviceScope.launch {
-                    if (execResult.success) {
-                        overlay.updateState(OverlayState.IDLE, text = userText, result = execResult.message)
+                    val speakText = if (execResult.success) execResult.message else execResult.message
+                    overlay.updateState(
+                        if (execResult.success) OverlayState.IDLE else OverlayState.ERROR,
+                        text = userText,
+                        result = execResult.message
+                    )
+                    if (execResult.success && action is com.controlmoblie.model.Action.Wait) {
+                        delay(1000)
+                        if (isRunning) startListening()
                     } else {
-                        overlay.updateState(OverlayState.ERROR, text = userText, result = execResult.message)
+                        speakResult(speakText)
                     }
-                    delay(1000)
-                    if (isRunning) startListening()
                 }
             }
 
         } catch (e: TimeoutCancellationException) {
             overlay.updateState(OverlayState.ERROR, text = userText, result = "推理超时")
-            delay(1500)
-            if (isRunning) startListening()
+            speakResult("推理超时")
         } catch (e: Exception) {
             overlay.updateState(OverlayState.ERROR, text = userText, result = "处理失败: ${e.message}")
-            delay(1500)
-            if (isRunning) startListening()
+            speakResult("处理失败")
         }
     }
 
@@ -194,6 +225,7 @@ class VoiceControlService : Service() {
         asrManager?.release()
         asrManager = null
         llmEngine.unload()
+        ttsSpeaker.release()
         overlay.dismiss()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
