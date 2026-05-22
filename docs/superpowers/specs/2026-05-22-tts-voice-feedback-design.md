@@ -1,78 +1,78 @@
-# TTS Voice Feedback Design
+# TTS 语音反馈设计
 
-Date: 2026-05-22
+日期: 2026-05-22
 
-## Summary
+## 概述
 
-Add text-to-speech voice feedback to the voice control app. When an action completes (success or failure), the system speaks the result aloud using sherpa-onnx offline TTS with the vits-zh-hf-echo Chinese model.
+为语音控制应用添加文字转语音（TTS）反馈功能。当操作执行完成（成功或失败）后，系统使用 sherpa-onnx 离线 TTS 和 vits-zh-hf-echo 中文模型将结果朗读出来。
 
-## Requirements
+## 需求
 
-- **TTS engine**: sherpa-onnx offline TTS (vits-zh-hf-echo model)
-- **Trigger**: After action execution completes (success or failure)
-- **Success**: Brief spoken result (e.g. "已打开微信", "已返回")
-- **Failure**: Detailed spoken error message (e.g. "未找到应用：微信")
-- **ASR muting**: TTS output must NOT be picked up by ASR as a new command
-- **Model delivery**: Download at runtime from GitHub releases (~120MB), same pattern as Vosk model
-- **Fallback**: If TTS model not downloaded/loaded, silently skip (overlay still shows results)
+- **TTS 引擎**: sherpa-onnx 离线 TTS（vits-zh-hf-echo 模型）
+- **触发时机**: 操作执行完成后（成功或失败）
+- **成功时**: 简短的口语化结果（例如"已打开微信"、"已返回"）
+- **失败时**: 详细的口语化错误信息（例如"未找到应用：微信"）
+- **ASR 静音**: TTS 输出不能被 ASR 识别为新的语音指令
+- **模型分发**: 运行时从 GitHub Releases 下载（约 120MB），与 Vosk 模型下载模式一致
+- **降级策略**: 如果 TTS 模型未下载/未加载，则静默跳过（悬浮窗仍然显示结果）
 
-## Architecture
+## 架构
 
-### New Component: `TtsSpeaker`
+### 新增组件: `TtsSpeaker`
 
-Package: `com.controlmoblie.tts`
+包路径: `com.controlmoblie.tts`
 
 ```
 TtsSpeaker(context: Context)
-  - init(): Boolean                    // Load model, return success
-  - speak(text: String, onDone: () -> Unit)  // Generate + play audio
-  - release()                         // Free native resources
-  - isModelReady: Boolean              // Check if model files exist
+  - init(): Boolean                    // 加载模型，返回是否成功
+  - speak(text: String, onDone: () -> Unit)  // 生成并播放音频
+  - release()                         // 释放原生资源
+  - isModelReady: Boolean              // 检查模型文件是否存在
 ```
 实现细节:
-- Internal `OfflineTts` instance from sherpa-onnx
-- Internal `AudioTrack` for PCM float playback at 22050Hz mono
-- `speak()` runs generation on `Dispatchers.IO`, streams audio chunks via `generateWithCallback`
-- Callback writes each chunk to `AudioTrack` in real-time
-- `speak()` is **sequential**: if already speaking, new call queues or drops
+- 内部使用 sherpa-onnx 的 `OfflineTts` 实例
+- 内部使用 `AudioTrack` 进行 22050Hz 单声道 PCM float 播放
+- `speak()` 在 `Dispatchers.IO` 上运行生成，通过 `generateWithCallback` 流式传输音频块
+- 回调实时将每个音频块写入 `AudioTrack`
+- `speak()` 是**顺序的**: 如果正在播报，新的调用会排队或丢弃
 
-### Updated Component: `VoiceControlService`
+### 更新组件: `VoiceControlService`
 
-Changes to flow:
+流程变更:
 
 ```
-ASR recognize → LLM parse → execute action → result
-                                                    ↓
-                                              stop ASR listening
-                                              TTS speak result text
-                                              wait for TTS onDone callback
-                                              delay 500ms
-                                              restart ASR listening
+ASR 识别 → LLM 解析 → 执行操作 → 结果
+                                      ↓
+                               停止 ASR 监听
+                               TTS 播报结果文本
+                               等待 TTS onDone 回调
+                               延迟 500ms
+                               重新启动 ASR 监听
 ```
 
-**Critical**: ASR must be stopped before TTS speaks, otherwise microphone picks up TTS audio as a command.
+**关键点**: ASR 必须在 TTS 播报前停止，否则麦克风会将 TTS 音频识别为语音指令。
 
-### Updated Component: `MainActivity`
+### 更新组件: `MainActivity`
 
-Add UI for TTS model download (mirrors Vosk model download pattern):
-- "下载语音合成模型 (~120MB)" button
-- Progress bar during download
-- "语音合成 ✓" status indicator when ready
+添加 TTS 模型下载 UI（参照 Vosk 模型下载模式）:
+- "下载语音合成模型 (~120MB)" 按钮
+- 下载过程中的进度条
+- 就绪时显示"语音合成 ✓"状态指示
 
-### Model Management: `TtsModelManager`
+### 模型管理: `TtsModelManager`
 
-Package: `com.controlmoblie.tts`
+包路径: `com.controlmoblie.tts`
 
 ```
 TtsModelManager
   - isModelReady(context: Context): Boolean
-  - getModelDir(context: Context): String   // returns filesDir/vits-zh-hf-echo
+  - getModelDir(context: Context): String   // 返回 filesDir/vits-zh-hf-echo
   - downloadAndExtract(context: Context, onProgress: (Float) -> Unit): Boolean
 ```
 
-Download source: `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-zh-hf-echo.tar.bz2`
+下载地址: `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-zh-hf-echo.tar.bz2`
 
-Files extracted to `context.filesDir/vits-zh-hf-echo/`:
+解压到 `context.filesDir/vits-zh-hf-echo/` 的文件:
 - `echo.onnx` (~116MB)
 - `lexicon.txt`
 - `tokens.txt`
@@ -80,19 +80,19 @@ Files extracted to `context.filesDir/vits-zh-hf-echo/`:
 - `number.fst`
 - `date.fst`
 - `new_heteronym.fst`
-- `dict/` directory
+- `dict/` 目录
 
-**NOT included** (too large, ~172MB): `rule.far`. The small FST files (`phone.fst`, `number.fst`, `date.fst`) are sufficient for number/date normalization.
+**不包含**（过大，约 172MB）: `rule.far`。较小的 FST 文件（`phone.fst`、`number.fst`、`date.fst`）足以处理数字/日期标准化。
 
-### sherpa-onnx Integration
+### sherpa-onnx 集成
 
-**Approach: Copy Kotlin API source files + pre-built JNI libs**
+**方案: 复制 Kotlin API 源文件 + 预编译 JNI 库**
 
-1. Add sherpa-onnx AAR or copy `kotlin-api/Tts.kt` and related files into project
-2. Add pre-built `libsherpa-onnx-jni.so` for each ABI to `jniLibs/`
-3. Use `OfflineTts` with `OfflineTtsConfig` pointing to model files in `filesDir`
+1. 添加 sherpa-onnx AAR 或将 `kotlin-api/Tts.kt` 及相关文件复制到项目中
+2. 将各 ABI 的预编译 `libsherpa-onnx-jni.so` 放入 `jniLibs/`
+3. 使用 `OfflineTts` 配合指向 `filesDir` 中模型文件的 `OfflineTtsConfig`
 
-Config:
+配置:
 ```kotlin
 OfflineTtsConfig(
     model = OfflineTtsModelConfig(
@@ -109,9 +109,9 @@ OfflineTtsConfig(
 )
 ```
 
-### Result Text Mapping
+### 结果文本映射
 
-| Action | Success Text | Failure Text |
+| 操作 | 成功文本 | 失败文本 |
 |--------|-------------|-------------|
 | Click | "已点击{target}" | "未找到{target}" |
 | OpenApp | "已打开{name}" | "未找到应用{name}" |
@@ -120,15 +120,15 @@ OfflineTtsConfig(
 | Navigate recents | "最近任务" | "切换失败" |
 | Scroll | "已滑动" | "滑动失败" |
 | Type | "已输入" | "未找到输入框" |
-| Wait | (silent, no TTS) | — |
-| Sequence | Last step's result | First failure message |
-| Error (parse/LLM) | — | Original error message |
+| Wait | （静默，无 TTS） | — |
+| Sequence | 最后一步的结果 | 第一条失败信息 |
+| Error (解析/LLM) | — | 原始错误信息 |
 
-For `OpenApp`, `{name}` is the original Chinese name from the voice command (e.g. "微信"), NOT the resolved package name. The `ExecutionEngine` must pass the original name through to the result callback. Since `Action.OpenApp.package` stores the resolved package name after `AppResolver.resolve()`, the original name must be preserved separately — the simplest approach is to store the pre-resolution name as an additional field or to resolve back in the result text.
+对于 `OpenApp`，`{name}` 使用语音指令中的原始中文名称（例如"微信"），而非解析后的包名。`ExecutionEngine` 必须将原始名称传递给结果回调。由于 `Action.OpenApp.package` 在 `AppResolver.resolve()` 之后存储的是解析后的包名，原始名称必须单独保留——最简单的方案是将解析前的名称存储为额外字段，或在结果文本中反向解析。
 
-**Implementation note**: `LlmEngine.simulateInference()` already outputs `"package": "微信"` before `AppResolver` resolves it. `ControlAccessibilityService.executeOpenApp()` calls `AppResolver.resolve(action.package)` and uses the resolved name for `getLaunchIntentForPackage()`. For TTS text, the result message should use the original `action.package` (e.g. "微信") not the resolved package.
+**实现说明**: `LlmEngine.simulateInference()` 在 `AppResolver` 解析之前已经输出 `"package": "微信"`。`ControlAccessibilityService.executeOpenApp()` 调用 `AppResolver.resolve(action.package)` 并使用解析后的名称进行 `getLaunchIntentForPackage()`。对于 TTS 文本，结果消息应使用原始的 `action.package`（例如"微信"），而非解析后的包名。
 
-### Dependency Addition
+### 依赖添加
 
 `libs.versions.toml`:
 ```toml
@@ -140,29 +140,29 @@ sherpa-onnx = "1.13.2"
 implementation(files("libs/sherpa-onnx-1.13.2.aar"))
 ```
 
-Pre-built `.so` files for `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` placed in `jniLibs/<abi>/libsherpa-onnx-jni.so`.
+将 `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 的预编译 `.so` 文件放入 `jniLibs/<abi>/libsherpa-onnx-jni.so`。
 
-## Package Layout (additions)
+## 包结构（新增）
 
 ```
 com.controlmoblie/
   tts/
-    TtsSpeaker.kt          // TTS engine wrapper + AudioTrack playback
-    TtsModelManager.kt     // Model download/extract management
-  ...existing packages...
+    TtsSpeaker.kt          // TTS 引擎封装 + AudioTrack 播放
+    TtsModelManager.kt     // 模型下载/解压管理
+  ...已有包...
 ```
 
-## Error Handling
+## 错误处理
 
-- TTS model not downloaded → skip TTS, overlay-only feedback
-- TTS model load fails → log warning, skip TTS
-- TTS generation fails → log error, skip TTS
-- AudioTrack init fails → log error, skip TTS
-- All errors fall back to overlay-only feedback (current behavior)
+- TTS 模型未下载 → 跳过 TTS，仅悬浮窗反馈
+- TTS 模型加载失败 → 记录警告日志，跳过 TTS
+- TTS 生成失败 → 记录错误日志，跳过 TTS
+- AudioTrack 初始化失败 → 记录错误日志，跳过 TTS
+- 所有错误均降级为仅悬浮窗反馈（当前行为）
 
-## Concurrency
+## 并发
 
-- `TtsSpeaker.speak()` must be called from a coroutine on `Dispatchers.IO`
-- Only one TTS utterance at a time; if `speak()` is called while speaking, drop the new one
-- ASR must be stopped before TTS, restarted after TTS completes
-- `VoiceControlService.processVoiceCommand()` already runs in a coroutine scope
+- `TtsSpeaker.speak()` 必须从 `Dispatchers.IO` 上的协程中调用
+- 同一时间只能有一个 TTS 播报；如果 `speak()` 被调用时正在播报，则丢弃新的调用
+- ASR 必须在 TTS 之前停止，在 TTS 完成后重新启动
+- `VoiceControlService.processVoiceCommand()` 已在协程作用域中运行

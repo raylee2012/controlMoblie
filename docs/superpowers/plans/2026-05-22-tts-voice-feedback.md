@@ -1,66 +1,66 @@
-# TTS Voice Feedback Implementation Plan
+# TTS 语音反馈实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **自动化执行者须知:** 必需子技能: 使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 来逐任务实现本计划。步骤使用勾选框 (`- [ ]`) 语法进行跟踪。
 
-**Goal:** Add offline TTS voice feedback using sherpa-onnx + vits-zh-hf-echo model, so action results are spoken aloud after execution.
+**目标:** 使用 sherpa-onnx + vits-zh-hf-echo 模型添加离线 TTS 语音反馈，使操作结果在执行后通过语音播报。
 
-**Architecture:** New `TtsSpeaker` wraps sherpa-onnx `OfflineTts` for generation + `AudioTrack` for playback. `TtsModelManager` handles model download. `VoiceControlService` orchestrates: stop ASR → speak result → restart ASR. `MainActivity` gets a download UI. `ExecutionEngine` result messages are used as TTS text.
+**架构:** 新增 `TtsSpeaker` 封装 sherpa-onnx `OfflineTts` 进行生成 + `AudioTrack` 进行播放。`TtsModelManager` 处理模型下载。`VoiceControlService` 编排: 停止 ASR → 播报结果 → 重新启动 ASR。`MainActivity` 增加下载 UI。`ExecutionEngine` 的结果消息用作 TTS 文本。
 
-**Tech Stack:** Kotlin, sherpa-onnx Android AAR, vits-zh-hf-echo model (~120MB download)
+**技术栈:** Kotlin, sherpa-onnx Android AAR, vits-zh-hf-echo 模型（约 120MB 下载）
 
 ---
 
-## File Structure
+## 文件结构
 
-| File | Action | Responsibility |
+| 文件 | 操作 | 职责 |
 |------|--------|---------------|
-| `app/libs/sherpa-onnx-1.13.2.aar` | Add | sherpa-onnx Android library |
-| `app/src/main/jniLibs/<abi>/libsherpa-onnx-jni.so` | Add | Native JNI library (4 ABIs) |
-| `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt` | Create | TTS engine wrapper + AudioTrack playback |
-| `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt` | Create | Model download & extraction |
-| `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt` | Modify | Integrate TTS: stop ASR before speak, restart after |
-| `app/src/main/java/com/controlmoblie/execution/ExecutionEngine.kt` | Modify | Change result messages to Chinese, add original app name |
-| `app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt` | Modify | OpenApp result uses original name |
-| `app/src/main/java/com/controlmoblie/model/Action.kt` | Modify | Add `displayName` field to `OpenApp` for Chinese name |
-| `app/src/main/java/com/controlmoblie/MainActivity.kt` | Modify | Add TTS model download UI |
-| `app/build.gradle.kts` | Modify | Add sherpa-onnx AAR dependency |
-| `gradle/libs.versions.toml` | Modify | Add sherpa-onnx version |
+| `app/libs/sherpa-onnx-1.13.2.aar` | 添加 | sherpa-onnx Android 库 |
+| `app/src/main/jniLibs/<abi>/libsherpa-onnx-jni.so` | 添加 | 原生 JNI 库（4 个 ABI） |
+| `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt` | 创建 | TTS 引擎封装 + AudioTrack 播放 |
+| `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt` | 创建 | 模型下载与解压 |
+| `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt` | 修改 | 集成 TTS: 播报前停止 ASR，播报后重新启动 |
+| `app/src/main/java/com/controlmoblie/execution/ExecutionEngine.kt` | 修改 | 将结果消息改为中文，添加原始应用名称 |
+| `app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt` | 修改 | OpenApp 结果使用原始名称 |
+| `app/src/main/java/com/controlmoblie/model/Action.kt` | 修改 | 为 `OpenApp` 添加 `displayName` 字段以存储中文名称 |
+| `app/src/main/java/com/controlmoblie/MainActivity.kt` | 修改 | 添加 TTS 模型下载 UI |
+| `app/build.gradle.kts` | 修改 | 添加 sherpa-onnx AAR 依赖 |
+| `gradle/libs.versions.toml` | 修改 | 添加 sherpa-onnx 版本号 |
 
 ---
 
-### Task 1: Add sherpa-onnx dependency
+### 任务 1: 添加 sherpa-onnx 依赖
 
-**Files:**
-- Modify: `gradle/libs.versions.toml`
-- Modify: `app/build.gradle.kts`
-- Add: `app/libs/sherpa-onnx-1.13.2.aar`
-- Add: `app/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so`
-- Add: `app/src/main/jniLibs/armeabi-v7a/libsherpa-onnx-jni.so`
-- Add: `app/src/main/jniLibs/x86/libsherpa-onnx-jni.so`
-- Add: `app/src/main/jniLibs/x86_64/libsherpa-onnx-jni.so`
+**涉及文件:**
+- 修改: `gradle/libs.versions.toml`
+- 修改: `app/build.gradle.kts`
+- 添加: `app/libs/sherpa-onnx-1.13.2.aar`
+- 添加: `app/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so`
+- 添加: `app/src/main/jniLibs/armeabi-v7a/libsherpa-onnx-jni.so`
+- 添加: `app/src/main/jniLibs/x86/libsherpa-onnx-jni.so`
+- 添加: `app/src/main/jniLibs/x86_64/libsherpa-onnx-jni.so`
 
-- [ ] **Step 1: Download sherpa-onnx AAR**
+- [ ] **步骤 1: 下载 sherpa-onnx AAR**
 
-Download from `https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-1.13.2.aar` and place at `app/libs/sherpa-onnx-1.13.2.aar`.
+从 `https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-1.13.2.aar` 下载并放置到 `app/libs/sherpa-onnx-1.13.2.aar`。
 
-- [ ] **Step 2: Download JNI .so files for all 4 ABIs**
+- [ ] **步骤 2: 下载全部 4 个 ABI 的 JNI .so 文件**
 
-Download from `https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-android-native-lib.tar.bz2`, extract, and place each ABI's `libsherpa-onnx-jni.so` into `app/src/main/jniLibs/<abi>/`.
+从 `https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-android-native-lib.tar.bz2` 下载，解压后将各 ABI 的 `libsherpa-onnx-jni.so` 放入 `app/src/main/jniLibs/<abi>/`。
 
-- [ ] **Step 3: Add version to `gradle/libs.versions.toml`**
+- [ ] **步骤 3: 在 `gradle/libs.versions.toml` 中添加版本号**
 
-Add `sherpa-onnx = "1.13.2"` to `[versions]` section.
+在 `[versions]` 节中添加 `sherpa-onnx = "1.13.2"`。
 
-- [ ] **Step 4: Add AAR dependency to `app/build.gradle.kts`**
+- [ ] **步骤 4: 在 `app/build.gradle.kts` 中添加 AAR 依赖**
 
-Add `implementation(files("libs/sherpa-onnx-1.13.2.aar"))` to dependencies block.
+在 dependencies 块中添加 `implementation(files("libs/sherpa-onnx-1.13.2.aar"))`。
 
-- [ ] **Step 5: Verify build compiles**
+- [ ] **步骤 5: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6: 提交**
 
 ```
 git add app/libs/sherpa-onnx-1.13.2.aar app/src/main/jniLibs/ gradle/libs.versions.toml app/build.gradle.kts
@@ -69,14 +69,14 @@ git commit -m "feat: add sherpa-onnx TTS dependency"
 
 ---
 
-### Task 2: Create TtsModelManager
+### 任务 2: 创建 TtsModelManager
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt`
+**涉及文件:**
+- 创建: `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt`
 
-- [ ] **Step 1: Create TtsModelManager mirroring VoskModelManager pattern**
+- [ ] **步骤 1: 参照 VoskModelManager 模式创建 TtsModelManager**
 
-Create `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt`:
+创建 `app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt`:
 
 ```kotlin
 package com.controlmoblie.tts
@@ -189,29 +189,29 @@ object TtsModelManager {
 }
 ```
 
-- [ ] **Step 2: Add Apache Commons Compress dependency for tar.bz2 extraction**
+- [ ] **步骤 2: 添加 Apache Commons Compress 依赖用于 tar.bz2 解压**
 
-In `gradle/libs.versions.toml`, add:
+在 `gradle/libs.versions.toml` 中添加:
 ```toml
 commons-compress = "1.26.2"
 ```
 
-In `[libraries]` section add:
+在 `[libraries]` 节中添加:
 ```toml
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
 ```
 
-In `app/build.gradle.kts`, add to dependencies:
+在 `app/build.gradle.kts` 的 dependencies 中添加:
 ```kotlin
 implementation(libs.commons.compress)
 ```
 
-- [ ] **Step 3: Verify build compiles**
+- [ ] **步骤 3: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4: 提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/tts/TtsModelManager.kt gradle/libs.versions.toml app/build.gradle.kts
@@ -220,14 +220,14 @@ git commit -m "feat: add TtsModelManager for model download"
 
 ---
 
-### Task 3: Create TtsSpeaker
+### 任务 3: 创建 TtsSpeaker
 
-**Files:**
-- Create: `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt`
+**涉及文件:**
+- 创建: `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt`
 
-- [ ] **Step 1: Create TtsSpeaker class**
+- [ ] **步骤 1: 创建 TtsSpeaker 类**
 
-Create `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt`:
+创建 `app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt`:
 
 ```kotlin
 package com.controlmoblie.tts
@@ -369,12 +369,12 @@ class TtsSpeaker(private val context: Context) {
 }
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3: 提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/tts/TtsSpeaker.kt
@@ -383,28 +383,28 @@ git commit -m "feat: add TtsSpeaker for sherpa-onnx TTS playback"
 
 ---
 
-### Task 4: Add displayName to Action.OpenApp
+### 任务 4: 为 Action.OpenApp 添加 displayName 字段
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/model/Action.kt`
-- Modify: `app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
-- Modify: `app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
-- Modify: `app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt`
+**涉及文件:**
+- 修改: `app/src/main/java/com/controlmoblie/model/Action.kt`
+- 修改: `app/src/main/java/com/controlmoblie/llm/LlmEngine.kt`
+- 修改: `app/src/main/java/com/controlmoblie/llm/InstructionParser.kt`
+- 修改: `app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt`
 
-- [ ] **Step 1: Add displayName field to Action.OpenApp**
+- [ ] **步骤 1: 为 Action.OpenApp 添加 displayName 字段**
 
-In `model/Action.kt`, change:
+在 `model/Action.kt` 中将:
 ```kotlin
 data class OpenApp(val `package`: String) : Action()
 ```
-to:
+改为:
 ```kotlin
 data class OpenApp(val `package`: String, val displayName: String = "") : Action()
 ```
 
-- [ ] **Step 2: Update LlmEngine.simulateInference to include displayName**
+- [ ] **步骤 2: 更新 LlmEngine.simulateInference 以包含 displayName**
 
-In `LlmEngine.kt`, change the `open_app` case to:
+在 `LlmEngine.kt` 中将 `open_app` 分支改为:
 ```kotlin
 userText.contains("打开") -> {
     val target = extractAfterKeyword(userText, listOf("打开"))
@@ -413,20 +413,20 @@ userText.contains("打开") -> {
 }
 ```
 
-- [ ] **Step 3: Update InstructionParser.parseAction to parse displayName**
+- [ ] **步骤 3: 更新 InstructionParser.parseAction 以解析 displayName**
 
-In `InstructionParser.kt`, change the `open_app` case from:
+在 `InstructionParser.kt` 中将 `open_app` 分支从:
 ```kotlin
 "open_app" -> Action.OpenApp(json.optString("package", ""))
 ```
-to:
+改为:
 ```kotlin
 "open_app" -> Action.OpenApp(json.optString("package", ""), json.optString("displayName", ""))
 ```
 
-- [ ] **Step 4: Update ControlAccessibilityService.executeOpenApp to use displayName in result**
+- [ ] **步骤 4: 更新 ControlAccessibilityService.executeOpenApp 在结果中使用 displayName**
 
-In `ControlAccessibilityService.kt`, change the result messages:
+在 `ControlAccessibilityService.kt` 中修改结果消息:
 ```kotlin
 private fun executeOpenApp(action: Action.OpenApp, onResult: (Boolean, String) -> Unit) {
     val packageName = AppResolver.resolve(action.`package`)
@@ -445,24 +445,24 @@ private fun executeOpenApp(action: Action.OpenApp, onResult: (Boolean, String) -
 }
 ```
 
-- [ ] **Step 5: Update other result messages to Chinese**
+- [ ] **步骤 5: 将其他结果消息更新为中文**
 
-In `ControlAccessibilityService.kt`, update these result messages:
-- `executeClick` success: `"已点击 ${action.target}"` (was `"clicked ${action.target}"`)
-- `executeClick` fail: `"未找到 ${action.target}"` (was `"target '${action.target}' not found"`)
-- `executeNavigate` success: use Chinese — back=`"已返回"`, home=`"已回桌面"`, recents=`"最近任务"` (was `"navigate ${action.type}"`)
-- `executeNavigate` fail: `"导航失败"` (was `"failed to navigate ${action.type}"`)
-- `executeScroll` success: `"已${action.direction}"` (was `"scrolled ${action.direction}"`)
-- `executeScroll` fail: `"滑动失败"` (was `"scroll cancelled"`)
-- `executeType` success: `"已输入"` (was `"typed text"`)
-- `executeType` fail: `"未找到输入框"` (was `"no focused input field"`)
+在 `ControlAccessibilityService.kt` 中更新以下结果消息:
+- `executeClick` 成功: `"已点击 ${action.target}"`（原为 `"clicked ${action.target}"`）
+- `executeClick` 失败: `"未找到 ${action.target}"`（原为 `"target '${action.target}' not found"`）
+- `executeNavigate` 成功: 使用中文 — 返回=`"已返回"`、回桌面=`"已回桌面"`、最近任务=`"最近任务"`（原为 `"navigate ${action.type}"`）
+- `executeNavigate` 失败: `"导航失败"`（原为 `"failed to navigate ${action.type}"`）
+- `executeScroll` 成功: `"已${action.direction}"`（原为 `"scrolled ${action.direction}"`）
+- `executeScroll` 失败: `"滑动失败"`（原为 `"scroll cancelled"`）
+- `executeType` 成功: `"已输入"`（原为 `"typed text"`）
+- `executeType` 失败: `"未找到输入框"`（原为 `"no focused input field"`）
 
-- [ ] **Step 6: Verify build compiles**
+- [ ] **步骤 6: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 7: Commit**
+- [ ] **步骤 7: 提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/model/Action.kt app/src/main/java/com/controlmoblie/llm/LlmEngine.kt app/src/main/java/com/controlmoblie/llm/InstructionParser.kt app/src/main/java/com/controlmoblie/service/ControlAccessibilityService.kt
@@ -471,31 +471,31 @@ git commit -m "feat: add displayName to Action.OpenApp, Chinese result messages"
 
 ---
 
-### Task 5: Integrate TTS into VoiceControlService
+### 任务 5: 将 TTS 集成到 VoiceControlService
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
+**涉及文件:**
+- 修改: `app/src/main/java/com/controlmoblie/service/VoiceControlService.kt`
 
-- [ ] **Step 1: Add TtsSpeaker field and lifecycle management**
+- [ ] **步骤 1: 添加 TtsSpeaker 字段和生命周期管理**
 
-Add `import com.controlmoblie.tts.TtsSpeaker` and `import com.controlmoblie.tts.TtsModelManager` to imports.
+在导入部分添加 `import com.controlmoblie.tts.TtsSpeaker` 和 `import com.controlmoblie.tts.TtsModelManager`。
 
-Add fields:
+添加字段:
 ```kotlin
 private lateinit var ttsSpeaker: TtsSpeaker
 ```
 
-In `onCreate()`, add after `executionEngine = ExecutionEngine()`:
+在 `onCreate()` 中，在 `executionEngine = ExecutionEngine()` 之后添加:
 ```kotlin
 ttsSpeaker = TtsSpeaker(this)
 ```
 
-In `initAndStart()`, add after `loadLlmModel()`:
+在 `initAndStart()` 中，在 `loadLlmModel()` 之后添加:
 ```kotlin
 loadTtsModel()
 ```
 
-Add method:
+添加方法:
 ```kotlin
 private fun loadTtsModel() {
     serviceScope.launch {
@@ -512,14 +512,14 @@ private fun loadTtsModel() {
 }
 ```
 
-In `onDestroy()`, add before `super.onDestroy()`:
+在 `onDestroy()` 中，在 `super.onDestroy()` 之前添加:
 ```kotlin
 ttsSpeaker.release()
 ```
 
-- [ ] **Step 2: Add speakResult helper method**
+- [ ] **步骤 2: 添加 speakResult 辅助方法**
 
-Add method:
+添加方法:
 ```kotlin
 private suspend fun speakResult(text: String) {
     if (text.isBlank()) return
@@ -533,11 +533,11 @@ private suspend fun speakResult(text: String) {
 }
 ```
 
-- [ ] **Step 3: Modify processVoiceCommand to stop ASR, speak, then restart**
+- [ ] **步骤 3: 修改 processVoiceCommand 以在 TTS 播报前停止 ASR，播报后重新启动**
 
-In `processVoiceCommand`, change ALL three branches (success, error, null action) to stop ASR before TTS and speak the result. Replace the existing flow with:
+在 `processVoiceCommand` 中，修改所有三个分支（成功、错误、空操作）以在 TTS 前停止 ASR 并播报结果。将现有流程替换为:
 
-For the **success branch** (after `executionEngine.execute(action)` callback):
+**成功分支**（`executionEngine.execute(action)` 回调之后）:
 ```kotlin
 overlay.updateState(OverlayState.EXECUTING, text = userText)
 executionEngine.execute(action) { execResult ->
@@ -558,40 +558,40 @@ executionEngine.execute(action) { execResult ->
 }
 ```
 
-For the **parse error branch** (`result.error != null`):
+**解析错误分支**（`result.error != null`）:
 ```kotlin
 overlay.updateState(OverlayState.ERROR, text = userText, result = result.error)
 speakResult(result.error ?: "解析失败")
 ```
 
-For the **null action branch**:
+**空操作分支**:
 ```kotlin
 overlay.updateState(OverlayState.ERROR, text = userText, result = "无法解析指令")
 speakResult("无法解析指令")
 ```
 
-For the **timeout** catch:
+**超时捕获**:
 ```kotlin
 overlay.updateState(OverlayState.ERROR, text = userText, result = "推理超时")
 speakResult("推理超时")
 ```
 
-For the **exception** catch:
+**异常捕获**:
 ```kotlin
 overlay.updateState(OverlayState.ERROR, text = userText, result = "处理失败: ${e.message}")
 speakResult("处理失败")
 ```
 
-**Important**: In each `speakResult()` call, `startListening()` will be restarted inside `speakResult`'s `onDone` callback (via the method above). This means we must **remove** the existing `delay(1500); if (isRunning) startListening()` calls in all error/timeout branches, since `speakResult` handles the restart.
+**重要**: 在每个 `speakResult()` 调用中，`startListening()` 将在 `speakResult` 的 `onDone` 回调中重新启动（通过上述方法）。这意味着我们必须**移除**所有错误/超时分支中现有的 `delay(1500); if (isRunning) startListening()` 调用，因为 `speakResult` 已处理重启逻辑。
 
-For the `Action.Wait` success case (already silent in spec), skip TTS and restart listening directly after the delay.
+对于 `Action.Wait` 成功情况（规范中要求静默），跳过 TTS 并在延迟后直接重新启动监听。
 
-- [ ] **Step 4: Verify build compiles**
+- [ ] **步骤 4: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5: 提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/service/VoiceControlService.kt
@@ -600,26 +600,26 @@ git commit -m "feat: integrate TTS into VoiceControlService"
 
 ---
 
-### Task 6: Add TTS model download UI in MainActivity
+### 任务 6: 在 MainActivity 中添加 TTS 模型下载 UI
 
-**Files:**
-- Modify: `app/src/main/java/com/controlmoblie/MainActivity.kt`
+**涉及文件:**
+- 修改: `app/src/main/java/com/controlmoblie/MainActivity.kt`
 
-- [ ] **Step 1: Add TTS model download section to ControlScreen**
+- [ ] **步骤 1: 在 ControlScreen 中添加 TTS 模型下载区域**
 
-Add imports:
+添加导入:
 ```kotlin
 import com.controlmoblie.tts.TtsModelManager
 ```
 
-Add state variables in `ControlScreen`:
+在 `ControlScreen` 中添加状态变量:
 ```kotlin
 var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
 var ttsDownloadProgress by remember { mutableStateOf(-1f) }
 var ttsDownloading by remember { mutableStateOf(false) }
 ```
 
-Add UI section after the Vosk model section (before the "开启无障碍服务" PermissionItem):
+在 Vosk 模型区域之后（"开启无障碍服务" PermissionItem 之前）添加 UI 区域:
 
 ```kotlin
 if (ttsDownloading) {
@@ -661,12 +661,12 @@ if (ttsModelReady && !ttsDownloading) {
 }
 ```
 
-- [ ] **Step 2: Verify build compiles**
+- [ ] **步骤 2: 验证编译通过**
 
-Run: `.\gradlew :app:compileDebugKotlin`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:compileDebugKotlin`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3: 提交**
 
 ```
 git add app/src/main/java/com/controlmoblie/MainActivity.kt
@@ -675,32 +675,32 @@ git commit -m "feat: add TTS model download UI in MainActivity"
 
 ---
 
-### Task 7: Full integration test
+### 任务 7: 完整集成测试
 
-- [ ] **Step 1: Build full debug APK**
+- [ ] **步骤 1: 构建完整 debug APK**
 
-Run: `.\gradlew :app:assembleDebug`
-Expected: BUILD SUCCESSFUL
+运行: `.\gradlew :app:assembleDebug`
+预期: BUILD SUCCESSFUL
 
-- [ ] **Step 2: Install on device**
+- [ ] **步骤 2: 安装到设备**
 
-Run: `adb install -r app\build\outputs\apk\debug\app-debug.apk`
+运行: `adb install -r app\build\outputs\apk\debug\app-debug.apk`
 
-- [ ] **Step 3: Test TTS model download**
+- [ ] **步骤 3: 测试 TTS 模型下载**
 
-Open app → tap "下载语音合成模型" → verify progress bar and completion. Check logcat for `TtsSpeaker: TTS initialized`.
+打开应用 → 点击"下载语音合成模型" → 验证进度条和完成状态。检查 logcat 中是否有 `TtsSpeaker: TTS initialized`。
 
-- [ ] **Step 4: Test TTS voice feedback**
+- [ ] **步骤 4: 测试 TTS 语音反馈**
 
-Enable accessibility service, start voice control, say "返回" → verify you hear "已返回" spoken aloud, and ASR doesn't pick up the TTS output as a new command.
+启用无障碍服务，启动语音控制，说"返回" → 验证听到"已返回"语音播报，且 ASR 不会将 TTS 输出识别为新指令。
 
-- [ ] **Step 5: Commit if any fixes were needed**
+- [ ] **步骤 5: 若有修复需要则提交**
 
 ---
 
-## Self-Review
+## 自查
 
-1. **Spec coverage**: ✅ TTS engine (Task 3), model download (Task 2), VoiceControlService integration (Task 5), MainActivity UI (Task 6), result text mapping (Task 4), dependency (Task 1), integration test (Task 7).
-2. **Placeholder scan**: No TBD/TODO. All code shown in full.
-3. **Type consistency**: `Action.OpenApp` now has `displayName: String = ""` parameter with default, so existing `"open_app"` JSON parsing still works. `TtsSpeaker.speak()` takes `text: String` and `onDone: () -> Unit`, matching the call sites in Task 5. `TtsModelManager.isModelReady()` returns `Boolean`, matching usage in `TtsSpeaker.init()` and `MainActivity`.
-4. **One gap identified**: The spec says `Action.Wait` should be silent (no TTS). Task 5 Step 3 handles this by checking `action is Action.Wait` and skipping `speakResult`, restarting listening directly after the delay.
+1. **规格覆盖**: ✅ TTS 引擎（任务 3）、模型下载（任务 2）、VoiceControlService 集成（任务 5）、MainActivity UI（任务 6）、结果文本映射（任务 4）、依赖项（任务 1）、集成测试（任务 7）。
+2. **占位符检查**: 无 TBD/TODO。所有代码均已完整展示。
+3. **类型一致性**: `Action.OpenApp` 现在具有带默认值的 `displayName: String = ""` 参数，因此现有 `"open_app"` JSON 解析仍然可以正常工作。`TtsSpeaker.speak()` 接收 `text: String` 和 `onDone: () -> Unit`，与任务 5 中的调用点匹配。`TtsModelManager.isModelReady()` 返回 `Boolean`，与 `TtsSpeaker.init()` 和 `MainActivity` 中的使用一致。
+4. **已识别的一个缺口**: 规格要求 `Action.Wait` 应为静默（无 TTS）。任务 5 步骤 3 通过检查 `action is Action.Wait` 并跳过 `speakResult`，在延迟后直接重新启动监听来处理此情况。
