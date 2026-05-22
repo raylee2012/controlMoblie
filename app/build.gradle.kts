@@ -22,7 +22,7 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/jni/CMakeLists.txt")
-            version = "3.22.0"
+            version = "3.22.1"
         }
     }
 
@@ -48,5 +48,6 @@ dependencies {
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.service)
     implementation(libs.coroutines.android)
+    implementation(libs.vosk.android)
     debugImplementation(libs.compose.ui.tooling)
 }

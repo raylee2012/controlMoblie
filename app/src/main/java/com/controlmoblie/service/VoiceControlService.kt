@@ -4,13 +4,14 @@ import android.app.*
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.controlmoblie.asr.AsrEvent
 import com.controlmoblie.asr.SpeechRecognizerManager
+import com.controlmoblie.asr.VoskModelManager
 import com.controlmoblie.execution.ExecutionEngine
 import com.controlmoblie.llm.InstructionParser
 import com.controlmoblie.llm.LlmEngine
-import com.controlmoblie.model.Action
 import com.controlmoblie.overlay.ControlOverlay
 import com.controlmoblie.overlay.OverlayState
 import com.controlmoblie.util.ScreenReader
@@ -19,7 +20,7 @@ import kotlinx.coroutines.*
 class VoiceControlService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private lateinit var asrManager: SpeechRecognizerManager
+    private var asrManager: SpeechRecognizerManager? = null
     private lateinit var llmEngine: LlmEngine
     private lateinit var parser: InstructionParser
     private lateinit var executionEngine: ExecutionEngine
@@ -32,7 +33,6 @@ class VoiceControlService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        asrManager = SpeechRecognizerManager(this)
         llmEngine = LlmEngine(this)
         parser = InstructionParser()
         overlay = ControlOverlay(this)
@@ -51,17 +51,34 @@ class VoiceControlService : Service() {
             isRunning = true
             overlay.show()
             overlay.updateState(OverlayState.IDLE)
-            startListening()
+            initAndStart()
         }
 
         return START_STICKY
     }
 
+    private fun initAndStart() {
+        if (!VoskModelManager.isModelReady(this)) {
+            overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
+            return
+        }
+        val modelPath = VoskModelManager.getModelPath(this)
+        val manager = SpeechRecognizerManager(modelPath)
+        if (!manager.init()) {
+            overlay.updateState(OverlayState.ERROR, result = "语音模型加载失败")
+            return
+        }
+        asrManager = manager
+        executionEngine = ExecutionEngine(ControlAccessibilityService.instance)
+        startListening()
+    }
+
     private fun startListening() {
+        val manager = asrManager ?: return
         overlay.updateState(OverlayState.LISTENING)
         listenJob?.cancel()
         listenJob = serviceScope.launch {
-            asrManager.events.collect { event ->
+            manager.events.collect { event ->
                 when (event) {
                     is AsrEvent.PartialResult -> {
                         overlay.updateState(OverlayState.LISTENING, text = event.text)
@@ -80,7 +97,7 @@ class VoiceControlService : Service() {
                 }
             }
         }
-        asrManager.startListening()
+        manager.startListening()
     }
 
     private suspend fun processVoiceCommand(userText: String) {
@@ -146,7 +163,7 @@ class VoiceControlService : Service() {
         isRunning = false
         listenJob?.cancel()
         listenJob = null
-        asrManager.stopListening()
+        asrManager?.stopListening()
         overlay.updateState(OverlayState.IDLE)
     }
 
@@ -155,7 +172,8 @@ class VoiceControlService : Service() {
     override fun onDestroy() {
         isRunning = false
         serviceScope.cancel()
-        asrManager.stopListening()
+        asrManager?.release()
+        asrManager = null
         overlay.dismiss()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()

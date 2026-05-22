@@ -1,14 +1,16 @@
 package com.controlmoblie.asr
 
-import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
+import android.util.Log
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import org.json.JSONObject
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.LogLevel
+import org.vosk.android.SpeechService
+import org.vosk.android.RecognitionListener
+import java.io.IOException
 
 sealed class AsrEvent {
     data class PartialResult(val text: String) : AsrEvent()
@@ -17,70 +19,102 @@ sealed class AsrEvent {
     object Ready : AsrEvent()
 }
 
-class SpeechRecognizerManager(private val context: Context) {
+class SpeechRecognizerManager(private val modelPath: String) {
 
-    private var recognizer: SpeechRecognizer? = null
+    private var speechService: SpeechService? = null
+    private var model: Model? = null
+    private var currentRecognizer: Recognizer? = null
     private val _events = Channel<AsrEvent>(Channel.CONFLATED)
     val events: Flow<AsrEvent> = _events.receiveAsFlow()
+    private var isListening = false
 
-    private val listener = object : RecognitionListener {
-        override fun onReadyForSpeech(params: Bundle?) {
-            _events.trySend(AsrEvent.Ready)
+    fun init(): Boolean {
+        return try {
+            org.vosk.LibVosk.setLogLevel(LogLevel.WARNINGS)
+            model = Model(modelPath)
+            true
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to load Vosk model", e)
+            _events.trySend(AsrEvent.Error("模型加载失败: ${e.message}"))
+            false
         }
-
-        override fun onBeginningOfSpeech() {}
-
-        override fun onRmsChanged(rmsdB: Float) {}
-
-        override fun onBufferReceived(buffer: ByteArray?) {}
-
-        override fun onEndOfSpeech() {}
-
-        override fun onError(error: Int) {
-            val msg = when (error) {
-                SpeechRecognizer.ERROR_NETWORK -> "网络错误"
-                SpeechRecognizer.ERROR_NO_MATCH -> "未识别到语音"
-                SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "说话超时"
-                SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "识别器忙"
-                else -> "识别错误: $error"
-            }
-            _events.trySend(AsrEvent.Error(msg))
-        }
-
-        override fun onResults(results: Bundle?) {
-            val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            if (!texts.isNullOrEmpty()) {
-                _events.trySend(AsrEvent.FinalResult(texts[0]))
-            } else {
-                _events.trySend(AsrEvent.Error("未获取到识别结果"))
-            }
-        }
-
-        override fun onPartialResults(partialResults: Bundle?) {
-            val texts = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            if (!texts.isNullOrEmpty()) {
-                _events.trySend(AsrEvent.PartialResult(texts[0]))
-            }
-        }
-
-        override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 
     fun startListening() {
-        stopListening()
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        recognizer?.setRecognitionListener(listener)
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 5000)
+        if (isListening) {
+            stopListening()
         }
-        recognizer?.startListening(intent)
+        val m = model ?: run {
+            _events.trySend(AsrEvent.Error("模型未加载"))
+            return
+        }
+        try {
+            currentRecognizer?.close()
+            val recognizer = Recognizer(m, SAMPLE_RATE)
+            currentRecognizer = recognizer
+            speechService = SpeechService(recognizer, SAMPLE_RATE)
+            speechService?.startListening(object : RecognitionListener {
+                override fun onPartialResult(partialResult: String?) {
+                    try {
+                        val json = JSONObject(partialResult ?: return)
+                        val partial = json.optString("partial", "")
+                        if (partial.isNotBlank()) {
+                            _events.trySend(AsrEvent.PartialResult(partial))
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to parse partial result", e)
+                    }
+                }
+
+                override fun onResult(result: String?) {
+                    try {
+                        val json = JSONObject(result ?: return)
+                        val text = json.optString("text", "")
+                        if (text.isNotBlank()) {
+                            _events.trySend(AsrEvent.FinalResult(text))
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to parse result", e)
+                    }
+                }
+
+                override fun onFinalResult(partialResult: String?) {
+                }
+
+                override fun onError(e: Exception?) {
+                    _events.trySend(AsrEvent.Error(e?.message ?: "识别错误"))
+                }
+
+                override fun onTimeout() {
+                    _events.trySend(AsrEvent.Error("识别超时"))
+                }
+            })
+            isListening = true
+            _events.trySend(AsrEvent.Ready)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start listening", e)
+            _events.trySend(AsrEvent.Error("启动识别失败: ${e.message}"))
+        }
     }
 
     fun stopListening() {
-        recognizer?.destroy()
-        recognizer = null
+        try {
+            speechService?.stop()
+        } catch (_: Exception) {}
+        speechService = null
+        currentRecognizer?.close()
+        currentRecognizer = null
+        isListening = false
+    }
+
+    fun release() {
+        stopListening()
+        model?.close()
+        model = null
+    }
+
+    companion object {
+        private const val TAG = "SpeechRecognizerManager"
+        private const val SAMPLE_RATE = 16000f
     }
 }

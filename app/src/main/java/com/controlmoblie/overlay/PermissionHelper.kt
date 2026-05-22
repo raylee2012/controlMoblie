@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.speech.SpeechRecognizer
 
 object PermissionHelper {
 
@@ -28,9 +27,5 @@ object PermissionHelper {
             context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         } else true
-    }
-
-    fun isSpeechRecognizerAvailable(context: Context): Boolean {
-        return SpeechRecognizer.isRecognitionAvailable(context)
     }
 }

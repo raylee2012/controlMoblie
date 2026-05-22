@@ -1,9 +1,7 @@
 package com.controlmoblie
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -15,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.controlmoblie.llm.LlmEngine
+import com.controlmoblie.asr.VoskModelManager
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +35,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startVoiceService() {
         val intent = Intent(this, VoiceControlService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
@@ -45,11 +43,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openAccessibilitySettings() {
-        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
+        startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 
     @Composable
@@ -59,6 +53,7 @@ class MainActivity : ComponentActivity() {
     ) {
         var hasOverlay by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(this@MainActivity)) }
         var hasAudio by remember { mutableStateOf(PermissionHelper.hasRecordPermission(this@MainActivity)) }
+        var voskModelReady by remember { mutableStateOf(VoskModelManager.isModelReady(this@MainActivity)) }
         var downloadProgress by remember { mutableStateOf(-1f) }
         var isDownloading by remember { mutableStateOf(false) }
 
@@ -74,8 +69,6 @@ class MainActivity : ComponentActivity() {
             hasAudio = granted
         }
 
-        val asrAvailable = remember { PermissionHelper.isSpeechRecognizerAvailable(this@MainActivity) }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -84,10 +77,6 @@ class MainActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text("Control Mobile", style = MaterialTheme.typography.headlineMedium)
-
-            if (!asrAvailable) {
-                Text("此设备不支持语音识别", color = MaterialTheme.colorScheme.error)
-            }
 
             PermissionItem("悬浮窗权限", hasOverlay, "需要在后台显示控制面板") {
                 overlayLauncher.launch(PermissionHelper.createOverlaySettingsIntent(this@MainActivity))
@@ -102,31 +91,40 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    if (downloadProgress >= 0f) "下载模型中... ${(downloadProgress * 100).toInt()}%"
+                    if (downloadProgress >= 0f) "下载语音模型中... ${(downloadProgress * 100).toInt()}%"
                     else "准备下载...",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
-            if (!isDownloading) {
+            if (!voskModelReady && !isDownloading) {
                 OutlinedButton(
                     onClick = {
+                        if (!hasAudio) return@OutlinedButton
                         isDownloading = true
                         downloadProgress = 0f
-                        this@MainActivity.lifecycleScope.launch(Dispatchers.IO) {
-                            val llm = LlmEngine(this@MainActivity)
-                            llm.downloadModel { progress ->
+                        this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
+                            val success = VoskModelManager.downloadAndExtract(this@MainActivity) { progress ->
                                 downloadProgress = progress
                             }
-                            downloadProgress = -1f
+                            voskModelReady = success
                             isDownloading = false
+                            downloadProgress = -1f
+                            if (!success) {
+                                downloadProgress = -1f
+                            }
                         }
                     },
-                    enabled = !isDownloading,
+                    enabled = hasAudio && !isDownloading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("下载语音模型 (~350MB)")
+                    Text("下载语音识别模型 (~42MB)")
                 }
+            }
+
+            if (voskModelReady && !isDownloading) {
+                Text("语音模型 ✓", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall)
             }
 
             Button(
@@ -136,7 +134,7 @@ class MainActivity : ComponentActivity() {
                 Text("开启无障碍服务")
             }
 
-            if (hasOverlay && hasAudio && asrAvailable) {
+            if (hasOverlay && hasAudio && voskModelReady) {
                 Button(
                     onClick = onStartService,
                     colors = ButtonDefaults.buttonColors(
