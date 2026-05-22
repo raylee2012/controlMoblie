@@ -72,6 +72,9 @@ class ControlAccessibilityService : AccessibilityService() {
 
     private fun findClickableByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
         val nodes = root.findAccessibilityNodeInfosByText(text)
+        Log.d(TAG, "findClickableByText: '$text' found ${nodes.size} text matches")
+
+        // also try contentDescription if text search yields nothing clickable
         var result: AccessibilityNodeInfo? = null
         for (node in nodes) {
             var current: AccessibilityNodeInfo? = node
@@ -86,8 +89,54 @@ class ControlAccessibilityService : AccessibilityService() {
             }
             if (result != null) break
         }
-        nodes.forEach { if (it !== result) it.recycle() }
+        nodes.forEach { if (it !== result && it !== result?.parent) it.recycle() }
+
+        // fallback: try contentDescription search
+        if (result == null) {
+            result = findClickableByContentDesc(root, text)
+        }
+
         return result
+    }
+
+    private fun findClickableByContentDesc(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        val nodes = root.findAccessibilityNodeInfosByText(text)
+        if (nodes.isEmpty()) {
+            Log.w(TAG, "findClickableByContentDesc: '$text' - no text or contentDesc match at all")
+            return null
+        }
+        for (node in nodes) {
+            var current: AccessibilityNodeInfo? = node
+            while (current != null) {
+                if (current.isClickable) {
+                    nodes.forEach { if (it !== current) it.recycle() }
+                    return current
+                }
+                val parent = current.parent
+                if (current !== node) current.recycle()
+                current = parent
+            }
+        }
+        nodes.forEach { it.recycle() }
+        return null
+    }
+
+    private val wechatTabPositions = mapOf(
+        "微信" to 0, "聊天" to 0,
+        "通讯录" to 1, "联系人" to 1,
+        "发现" to 2,
+        "我" to 3, "我的" to 3,
+    )
+
+    private fun performCoordinateClick(x: Int, y: Int, onResult: (Boolean) -> Unit) {
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+            .build()
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) { onResult(true) }
+            override fun onCancelled(gestureDescription: GestureDescription?) { onResult(false) }
+        }, null)
     }
 
     private fun executeClick(action: Action.Click, onResult: (Boolean, String) -> Unit) {
@@ -100,18 +149,35 @@ class ControlAccessibilityService : AccessibilityService() {
         }
 
         val clickable = findClickableByText(root, action.target)
-        if (clickable == null) {
-            Log.w(TAG, "executeClick: target '${action.target}' not found")
+        if (clickable != null) {
+            val clicked = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            clickable.recycle()
             root.recycle()
-            onResult(false, "未找到 ${action.target}")
+            Log.d(TAG, "executeClick: target=${action.target} text-match success=$clicked")
+            onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
             return
         }
 
-        val clicked = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        clickable.recycle()
+        // fallback: coordinate-based click for WeChat bottom tabs (MIUI blocks text)
+        val tabIndex = wechatTabPositions[action.target]
+        if (tabIndex != null) {
+            root.recycle()
+            val wm = getSystemService(android.view.WindowManager::class.java)
+            val size = android.graphics.Point()
+            wm?.defaultDisplay?.getSize(size)
+            val tabW = size.x / 4
+            val x = tabW * tabIndex + tabW / 2
+            val y = size.y - 100  // bottom tab bar area
+            Log.d(TAG, "executeClick: target=${action.target} coordinate fallback x=$x y=$y")
+            performCoordinateClick(x, y) { clicked ->
+                onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
+            }
+            return
+        }
+
+        Log.w(TAG, "executeClick: target '${action.target}' not found")
         root.recycle()
-        Log.d(TAG, "executeClick: target=${action.target} success=$clicked")
-        onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
+        onResult(false, "未找到 ${action.target}")
     }
 
     private fun executeOpenApp(action: Action.OpenApp, onResult: (Boolean, String) -> Unit) {
