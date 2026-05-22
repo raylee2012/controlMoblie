@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.controlmoblie.asr.VoskModelManager
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
+import com.controlmoblie.tts.TtsModelManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -26,8 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 ControlScreen(
-                    onStartService = { startVoiceService() },
-                    onOpenAccessibility = { openAccessibilitySettings() }
+                    onStartService = { startVoiceService() }
                 )
             }
         }
@@ -48,25 +48,35 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ControlScreen(
-        onStartService: () -> Unit,
-        onOpenAccessibility: () -> Unit
+        onStartService: () -> Unit
     ) {
         var hasOverlay by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(this@MainActivity)) }
         var hasAudio by remember { mutableStateOf(PermissionHelper.hasRecordPermission(this@MainActivity)) }
+        var hasAccessibility by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(this@MainActivity)) }
         var voskModelReady by remember { mutableStateOf(VoskModelManager.isModelReady(this@MainActivity)) }
         var downloadProgress by remember { mutableStateOf(-1f) }
         var isDownloading by remember { mutableStateOf(false) }
+        var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
+        var ttsDownloadProgress by remember { mutableStateOf(-1f) }
+        var ttsDownloading by remember { mutableStateOf(false) }
 
         val overlayLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) {
             hasOverlay = PermissionHelper.hasOverlayPermission(this@MainActivity)
+            hasAccessibility = PermissionHelper.isAccessibilityServiceEnabled(this@MainActivity)
         }
 
         val audioLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { granted ->
             hasAudio = granted
+        }
+
+        val accessibilityLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            hasAccessibility = PermissionHelper.isAccessibilityServiceEnabled(this@MainActivity)
         }
 
         Column(
@@ -83,6 +93,9 @@ class MainActivity : ComponentActivity() {
             }
             PermissionItem("录音权限", hasAudio, "用于语音识别") {
                 audioLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+            }
+            PermissionItem("无障碍服务", hasAccessibility, "需要执行点击、滑动等操作") {
+                accessibilityLauncher.launch(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
 
             if (isDownloading) {
@@ -127,11 +140,42 @@ class MainActivity : ComponentActivity() {
                     style = MaterialTheme.typography.bodySmall)
             }
 
-            Button(
-                onClick = { onOpenAccessibility() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("开启无障碍服务")
+            if (ttsDownloading) {
+                LinearProgressIndicator(
+                    progress = { if (ttsDownloadProgress >= 0f) ttsDownloadProgress else 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (ttsDownloadProgress >= 0f) "下载语音合成模型中... ${(ttsDownloadProgress * 100).toInt()}%"
+                    else "准备下载...",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (!ttsModelReady && !ttsDownloading) {
+                OutlinedButton(
+                    onClick = {
+                        ttsDownloading = true
+                        ttsDownloadProgress = 0f
+                        this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
+                            val success = TtsModelManager.downloadAndExtract(this@MainActivity) { progress ->
+                                ttsDownloadProgress = progress
+                            }
+                            ttsModelReady = success
+                            ttsDownloading = false
+                            ttsDownloadProgress = -1f
+                        }
+                    },
+                    enabled = !ttsDownloading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("下载语音合成模型 (~120MB)")
+                }
+            }
+
+            if (ttsModelReady && !ttsDownloading) {
+                Text("语音合成 ✓", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall)
             }
 
             if (hasOverlay && hasAudio && voskModelReady) {
