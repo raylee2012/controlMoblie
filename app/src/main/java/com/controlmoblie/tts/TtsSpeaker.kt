@@ -98,11 +98,17 @@ class TtsSpeaker(private val context: Context) {
                     .build()
                 audioTrack = track
                 track.play()
+                var totalFrames = 0
 
                 engine.generateWithCallback(text, SPEAKER_ID, SPEED) { samples ->
                     if (!isSpeaking) return@generateWithCallback 0
                     track.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                    totalFrames += samples.size
                     if (isSpeaking) 1 else 0
+                }
+
+                while (track.playState == AudioTrack.PLAYSTATE_PLAYING && track.playbackHeadPosition < totalFrames) {
+                    Thread.sleep(50)
                 }
 
                 track.stop()

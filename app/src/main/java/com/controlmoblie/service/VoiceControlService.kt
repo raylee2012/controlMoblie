@@ -112,7 +112,11 @@ class VoiceControlService : Service() {
 
     private suspend fun speakResult(text: String) {
         if (text.isBlank()) return
-        if (!ttsSpeaker.isModelReady) return
+        if (!ttsSpeaker.isModelReady) {
+            delay(1000)
+            if (isRunning) startListening()
+            return
+        }
         asrManager?.stopListening()
         ttsSpeaker.speak(text) {
             serviceScope.launch {
@@ -163,7 +167,7 @@ class VoiceControlService : Service() {
 
             if (result.error != null) {
                 overlay.updateState(OverlayState.ERROR, text = userText, result = result.error)
-                speakResult(result.error ?: "解析失败")
+                speakResult(result.error)
                 return
             }
 
