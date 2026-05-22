@@ -56,8 +56,10 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.lifecycle.runtime)
     implementation(libs.lifecycle.service)
     implementation(libs.coroutines.android)
     implementation(libs.vosk.android)
+    implementation(files("libs/sherpa-onnx-1.13.2.aar"))
     debugImplementation(libs.compose.ui.tooling)
 }
