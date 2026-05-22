@@ -14,7 +14,7 @@ import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineStream
-import com.k2fsa.sherpa.onnx.OnlineParaformerModelConfig
+import com.k2fsa.sherpa.onnx.OnlineZipformer2CtcModelConfig
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -41,7 +41,7 @@ class SpeechRecognizerManager(private val modelPath: String) {
             val featConfig = FeatureConfig(SAMPLE_RATE, 80, 0.0f)
 
             val modelConfig = OnlineModelConfig().apply {
-                paraformer = OnlineParaformerModelConfig("$modelPath/model.int8.onnx")
+                zipformer2Ctc = OnlineZipformer2CtcModelConfig("$modelPath/model.onnx")
                 tokens = "$modelPath/tokens.txt"
                 numThreads = 2
                 provider = "cpu"
