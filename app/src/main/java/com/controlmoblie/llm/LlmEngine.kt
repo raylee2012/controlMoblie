@@ -91,6 +91,9 @@ class LlmEngine(private val context: Context) {
     }
 
     private fun simulateInference(userText: String): String {
+        val templateJson = CommandTemplates.match(userText)
+        if (templateJson != null) return templateJson
+
         return when {
             userText.contains("返回") || userText.contains("后退") ->
                 "{\"action\": \"navigate\", \"type\": \"back\"}"

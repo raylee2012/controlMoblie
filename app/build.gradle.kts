@@ -62,5 +62,6 @@ dependencies {
     implementation(libs.vosk.android)
     implementation(files("libs/sherpa-onnx-1.13.2.aar"))
     implementation(libs.commons.compress)
+    testImplementation("junit:junit:4.13.2")
     debugImplementation(libs.compose.ui.tooling)
 }
