@@ -8,7 +8,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.controlmoblie.asr.AsrEvent
 import com.controlmoblie.asr.SpeechRecognizerManager
-import com.controlmoblie.asr.VoskModelManager
+import com.controlmoblie.asr.SenseVoiceModelManager
 import com.controlmoblie.execution.ExecutionEngine
 import com.controlmoblie.llm.InstructionParser
 import com.controlmoblie.llm.LlmEngine
@@ -66,11 +66,11 @@ class VoiceControlService : Service() {
     }
 
     private fun initAndStart() {
-        if (!VoskModelManager.isModelReady(this)) {
+        if (!SenseVoiceModelManager.isModelReady(this)) {
             overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
             return
         }
-        val modelPath = VoskModelManager.getModelPath(this)
+        val modelPath = SenseVoiceModelManager.getModelPath(this)
         val manager = SpeechRecognizerManager(modelPath)
         if (!manager.init()) {
             overlay.updateState(OverlayState.ERROR, result = "语音模型加载失败")

@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.controlmoblie.asr.VoskModelManager
+import com.controlmoblie.asr.SenseVoiceModelManager
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 import com.controlmoblie.tts.TtsModelManager
@@ -53,9 +53,9 @@ class MainActivity : ComponentActivity() {
         var hasOverlay by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(this@MainActivity)) }
         var hasAudio by remember { mutableStateOf(PermissionHelper.hasRecordPermission(this@MainActivity)) }
         var hasAccessibility by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(this@MainActivity)) }
-        var voskModelReady by remember { mutableStateOf(VoskModelManager.isModelReady(this@MainActivity)) }
-        var downloadProgress by remember { mutableStateOf(-1f) }
-        var isDownloading by remember { mutableStateOf(false) }
+        var asrModelReady by remember { mutableStateOf(SenseVoiceModelManager.isModelReady(this@MainActivity)) }
+        var asrDownloadProgress by remember { mutableStateOf(-1f) }
+        var asrDownloading by remember { mutableStateOf(false) }
         var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
         var ttsDownloadProgress by remember { mutableStateOf(-1f) }
         var ttsDownloading by remember { mutableStateOf(false) }
@@ -98,45 +98,42 @@ class MainActivity : ComponentActivity() {
                 accessibilityLauncher.launch(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
 
-            if (isDownloading) {
+            if (asrDownloading) {
                 LinearProgressIndicator(
-                    progress = { if (downloadProgress >= 0f) downloadProgress else 0f },
+                    progress = { if (asrDownloadProgress >= 0f) asrDownloadProgress else 0f },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    if (downloadProgress >= 0f) "下载语音模型中... ${(downloadProgress * 100).toInt()}%"
+                    if (asrDownloadProgress >= 0f) "下载语音识别模型中... ${(asrDownloadProgress * 100).toInt()}%"
                     else "准备下载...",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
-            if (!voskModelReady && !isDownloading) {
+            if (!asrModelReady && !asrDownloading) {
                 OutlinedButton(
                     onClick = {
                         if (!hasAudio) return@OutlinedButton
-                        isDownloading = true
-                        downloadProgress = 0f
+                        asrDownloading = true
+                        asrDownloadProgress = 0f
                         this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
-                            val success = VoskModelManager.downloadAndExtract(this@MainActivity) { progress ->
-                                downloadProgress = progress
+                            val success = SenseVoiceModelManager.downloadAndExtract(this@MainActivity) { progress ->
+                                asrDownloadProgress = progress
                             }
-                            voskModelReady = success
-                            isDownloading = false
-                            downloadProgress = -1f
-                            if (!success) {
-                                downloadProgress = -1f
-                            }
+                            asrModelReady = success
+                            asrDownloading = false
+                            asrDownloadProgress = -1f
                         }
                     },
-                    enabled = hasAudio && !isDownloading,
+                    enabled = hasAudio && !asrDownloading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("下载语音识别模型 (~42MB)")
+                    Text("下载语音识别模型 (~230MB)")
                 }
             }
 
-            if (voskModelReady && !isDownloading) {
-                Text("语音模型 ✓", color = MaterialTheme.colorScheme.primary,
+            if (asrModelReady && !asrDownloading) {
+                Text("语音识别 ✓", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall)
             }
 
@@ -178,7 +175,7 @@ class MainActivity : ComponentActivity() {
                     style = MaterialTheme.typography.bodySmall)
             }
 
-            if (hasOverlay && hasAudio && voskModelReady) {
+            if (hasOverlay && hasAudio && asrModelReady) {
                 Button(
                     onClick = onStartService,
                     colors = ButtonDefaults.buttonColors(
