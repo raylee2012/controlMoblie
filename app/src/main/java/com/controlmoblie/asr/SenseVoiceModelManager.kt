@@ -1,6 +1,7 @@
 package com.controlmoblie.asr
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
@@ -15,6 +16,8 @@ object SenseVoiceModelManager {
     private const val MODEL_DIR_NAME = "paraformer-zh-small"
     private const val TEMP_FILE_NAME = "sense-voice-small.tar.bz2.tmp"
     private const val MODEL_FILENAME = "model.onnx"
+
+    private const val TAG = "SenseVoiceModel"
 
     fun isModelReady(context: Context): Boolean {
         val modelDir = File(context.filesDir, MODEL_DIR_NAME)
@@ -38,11 +41,18 @@ object SenseVoiceModelManager {
             try {
                 withContext(Dispatchers.Main) { onProgress(0f) }
                 val url = URL(MODEL_URL)
-                val connection = url.openConnection().apply {
+                val connection = (url.openConnection() as java.net.HttpURLConnection).apply {
+                    instanceFollowRedirects = true
                     connectTimeout = 60000
                     readTimeout = 120000
                 }
                 connection.connect()
+                val responseCode = connection.responseCode
+                Log.d(TAG, "Download response: code=$responseCode, contentLength=${connection.contentLength}")
+                if (responseCode != 200) {
+                    Log.e(TAG, "Download failed with HTTP $responseCode")
+                    return@withContext false
+                }
                 val fileLength = connection.contentLengthLong
                 connection.getInputStream().use { input ->
                     tmpFile.outputStream().use { output ->
@@ -61,11 +71,19 @@ object SenseVoiceModelManager {
                     }
                 }
 
+                Log.d(TAG, "Download complete: ${tmpFile.length()} bytes")
+                if (tmpFile.length() < 1000) {
+                    Log.e(TAG, "Downloaded file too small, likely not a valid model")
+                    return@withContext false
+                }
+
                 withContext(Dispatchers.Main) { onProgress(0.75f) }
                 if (modelDir.exists()) modelDir.deleteRecursively()
                 modelDir.mkdirs()
 
+                Log.d(TAG, "Starting extraction...")
                 extractTarBz2(tmpFile, modelDir)
+                Log.d(TAG, "Extraction complete")
 
                 withContext(Dispatchers.Main) { onProgress(1f) }
                 isModelReady(context)
@@ -83,6 +101,7 @@ object SenseVoiceModelManager {
             BZip2CompressorInputStream(bis).use { bzIn ->
                 TarArchiveInputStream(bzIn).use { tarIn ->
                     var entry = tarIn.nextTarEntry
+                    var entryCount = 0
                     while (entry != null) {
                         if (!entry.isDirectory) {
                             val entryName = entry.name
@@ -97,9 +116,12 @@ object SenseVoiceModelManager {
                             destFile.outputStream().use { out ->
                                 tarIn.copyTo(out)
                             }
+                            entryCount++
+                            Log.d(TAG, "Extracted: $relativePath (${destFile.length()} bytes)")
                         }
                         entry = tarIn.nextTarEntry
                     }
+                    Log.d(TAG, "Extracted $entryCount files to $destDir")
                 }
             }
         }
