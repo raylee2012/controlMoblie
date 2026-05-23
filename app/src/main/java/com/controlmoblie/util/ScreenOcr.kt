@@ -2,6 +2,7 @@ package com.controlmoblie.util
 
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
@@ -17,12 +18,20 @@ object ScreenOcr {
     var isReady: Boolean = false
         private set
 
+    @VisibleForTesting
+    var bypassMlKitInit: Boolean = false
+
     fun init() {
         if (isReady) return
         try {
-            recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-            isReady = true
-            Log.d(TAG, "ML Kit TextRecognizer initialized")
+            if (bypassMlKitInit) {
+                isReady = true
+                Log.d(TAG, "ML Kit init bypassed (test mode)")
+            } else {
+                recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+                isReady = true
+                Log.d(TAG, "ML Kit TextRecognizer initialized")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "ML Kit init failed", e)
             isReady = false
@@ -64,5 +73,6 @@ object ScreenOcr {
         recognizer?.close()
         recognizer = null
         isReady = false
+        bypassMlKitInit = false
     }
 }

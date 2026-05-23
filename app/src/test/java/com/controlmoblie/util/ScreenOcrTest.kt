@@ -7,18 +7,22 @@ class ScreenOcrTest {
 
     @Test
     fun `isReady returns false before init`() {
+        ScreenOcr.release()
         assertFalse("should not be ready before init", ScreenOcr.isReady)
     }
 
     @Test
     fun `init sets isReady to true`() {
         ScreenOcr.release()
+        ScreenOcr.bypassMlKitInit = true
         ScreenOcr.init()
         assertTrue("isReady should be true after init", ScreenOcr.isReady)
     }
 
     @Test
     fun `release clears state`() {
+        ScreenOcr.release()
+        ScreenOcr.bypassMlKitInit = true
         ScreenOcr.init()
         ScreenOcr.release()
         assertFalse("isReady should be false after release", ScreenOcr.isReady)
