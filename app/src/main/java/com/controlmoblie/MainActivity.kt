@@ -200,6 +200,7 @@ class MainActivity : ComponentActivity() {
             if (!ocrReady) {
                 Button(
                     onClick = {
+                        startVoiceService()
                         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                         projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
                     },

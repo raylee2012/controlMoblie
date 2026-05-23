@@ -51,7 +51,7 @@
         <service
             android:name=".service.VoiceControlService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|mediaProjection" />
 
     </application>
 

@@ -66,20 +66,25 @@ class VoiceControlService : Service() {
     }
 
     private fun initAndStart() {
-        if (!SenseVoiceModelManager.isModelReady(this)) {
-            overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
-            return
+        try {
+            if (!SenseVoiceModelManager.isModelReady(this)) {
+                overlay.updateState(OverlayState.ERROR, result = "语音模型未下载")
+                return
+            }
+            val modelPath = SenseVoiceModelManager.getModelPath(this)
+            val manager = SpeechRecognizerManager(modelPath)
+            if (!manager.init()) {
+                overlay.updateState(OverlayState.ERROR, result = "语音模型加载失败")
+                return
+            }
+            asrManager = manager
+            loadLlmModel()
+            loadTtsModel()
+            startListening()
+        } catch (e: Exception) {
+            Log.e(TAG, "initAndStart failed", e)
+            overlay.updateState(OverlayState.ERROR, result = "初始化失败: ${e.message}")
         }
-        val modelPath = SenseVoiceModelManager.getModelPath(this)
-        val manager = SpeechRecognizerManager(modelPath)
-        if (!manager.init()) {
-            overlay.updateState(OverlayState.ERROR, result = "语音模型加载失败")
-            return
-        }
-        asrManager = manager
-        loadLlmModel()
-        loadTtsModel()
-        startListening()
     }
 
     private fun loadLlmModel() {

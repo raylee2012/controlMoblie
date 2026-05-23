@@ -82,7 +82,8 @@ class ControlAccessibilityService : AccessibilityService() {
         val nodes = root.findAccessibilityNodeInfosByText(text)
         Log.d(TAG, "findClickableByText: '$text' found ${nodes.size} text matches")
 
-        // also try contentDescription if text search yields nothing clickable
+        // MIUI on WeChat: nodes exist but isClickable is false on all parents.
+        // Strategy 1: walk up to clickable parent (normal case)
         var result: AccessibilityNodeInfo? = null
         for (node in nodes) {
             var current: AccessibilityNodeInfo? = node
@@ -97,6 +98,15 @@ class ControlAccessibilityService : AccessibilityService() {
             }
             if (result != null) break
         }
+
+        // Strategy 2: MIUI fallback — return the text node itself even if not clickable.
+        // TalkBack can click non-clickable nodes via performAction(ACTION_CLICK).
+        if (result == null && nodes.isNotEmpty()) {
+            result = nodes.first()
+            Log.d(TAG, "findClickableByText: MIUI fallback, returning non-clickable text node for '$text'")
+        }
+
+        // recycle other nodes
         nodes.forEach { if (it !== result && it !== result?.parent) it.recycle() }
 
         // fallback: try contentDescription search
@@ -160,6 +170,15 @@ class ControlAccessibilityService : AccessibilityService() {
         "我" to 3, "我的" to 3,
     )
 
+    // WeChat internal page schemes — bypasses MIUI click interception entirely
+    private val wechatPageSchemes = mapOf(
+        "公众号" to "weixin://dl/officialaccounts",
+        "订阅号" to "weixin://dl/officialaccounts",
+        "朋友圈" to "weixin://dl/moments",
+        "扫一扫" to "weixin://dl/scan",
+        "设置" to "weixin://dl/settings",
+    )
+
     private fun performCoordinateClick(x: Int, y: Int, onResult: (Boolean) -> Unit) {
         val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
         val gesture = GestureDescription.Builder()
@@ -173,6 +192,24 @@ class ControlAccessibilityService : AccessibilityService() {
 
     private fun executeClick(action: Action.Click, onResult: (Boolean, String) -> Unit) {
         Log.d(TAG, "executeClick: target=${action.target}")
+
+        // Strategy 0: bypass MIUI entirely by opening WeChat internal page via Intent
+        val scheme = wechatPageSchemes[action.target]
+        if (scheme != null) {
+            Log.d(TAG, "executeClick: using WeChat scheme fallback '$scheme'")
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(scheme))
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                Log.d(TAG, "executeClick: scheme launch success")
+                onResult(true, "已打开 ${action.target}")
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "executeClick: scheme launch failed", e)
+                // continue to normal click flow
+            }
+        }
+
         val root = rootInActiveWindow
         if (root == null) {
             Log.w(TAG, "executeClick: no window root")
@@ -184,11 +221,17 @@ class ControlAccessibilityService : AccessibilityService() {
         if (clickable != null) {
             val clicked = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             clickable.recycle()
-            root.recycle()
             Log.d(TAG, "executeClick: target=${action.target} text-match success=$clicked")
-            onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
-            return
+            if (clicked) {
+                root.recycle()
+                onResult(true, "已点击 ${action.target}")
+                return
+            }
+            // MIUI may block performAction on non-clickable nodes; continue to fallbacks
+            Log.w(TAG, "executeClick: performAction returned false, continuing to fallbacks")
         }
+        // If clickable == null or performAction failed, root is NOT recycled here
+        // — downstream fallbacks (coordinate / OCR) will recycle it.
 
         // fallback: coordinate-based click for WeChat bottom tabs (MIUI blocks text)
         val tabIndex = wechatTabPositions[action.target]
