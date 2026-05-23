@@ -1,6 +1,8 @@
 package com.controlmoblie
 
+import android.content.Context
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +19,7 @@ import com.controlmoblie.asr.SenseVoiceModelManager
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 import com.controlmoblie.tts.TtsModelManager
+import com.controlmoblie.util.ScreenCaptureManager
 import com.controlmoblie.util.ScreenOcr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -79,6 +82,23 @@ class MainActivity : ComponentActivity() {
             ActivityResultContracts.StartActivityForResult()
         ) {
             hasAccessibility = PermissionHelper.isAccessibilityServiceEnabled(this@MainActivity)
+        }
+
+        val projectionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK && result.data != null) {
+                val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                val projection = projectionManager.getMediaProjection(result.resultCode, result.data!!)
+                if (projection != null) {
+                    val wm = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                    val metrics = android.util.DisplayMetrics()
+                    wm.defaultDisplay.getRealMetrics(metrics)
+                    ScreenCaptureManager.init(projection, metrics.widthPixels, metrics.heightPixels, metrics.densityDpi)
+                    ScreenOcr.init()
+                    ocrReady = ScreenOcr.isReady && ScreenCaptureManager.isReady
+                }
+            }
         }
 
         Column(
@@ -180,8 +200,8 @@ class MainActivity : ComponentActivity() {
             if (!ocrReady) {
                 Button(
                     onClick = {
-                        ScreenOcr.init()
-                        ocrReady = ScreenOcr.isReady
+                        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                        projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

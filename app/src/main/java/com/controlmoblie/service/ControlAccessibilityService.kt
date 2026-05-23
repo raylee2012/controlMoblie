@@ -6,14 +6,13 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
-import android.hardware.HardwareBuffer
 import android.os.Build
-import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.util.Log
 import com.controlmoblie.model.*
 import com.controlmoblie.util.AppResolver
+import com.controlmoblie.util.ScreenCaptureManager
 import com.controlmoblie.util.ScreenOcr
 import com.controlmoblie.util.ScreenReader
 import kotlinx.coroutines.CoroutineScope
@@ -220,41 +219,33 @@ class ControlAccessibilityService : AccessibilityService() {
             ScreenOcr.init()
             Log.d(TAG, "OCR lazy init: isReady=${ScreenOcr.isReady}")
         }
-        if (ScreenOcr.isReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (!ScreenCaptureManager.isReady) {
+            Log.w(TAG, "ScreenCaptureManager not ready, skipping OCR fallback")
+        }
+        if (ScreenOcr.isReady && ScreenCaptureManager.isReady) {
             Log.d(TAG, "executeClick: trying OCR fallback for '${action.target}'")
-            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshot: ScreenshotResult) {
-                    val bitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
-                    if (bitmap == null) {
-                        screenshot.hardwareBuffer.close()
-                        onResult(false, "截屏失败")
-                        return
+            val bitmap = ScreenCaptureManager.capture()
+            if (bitmap == null) {
+                onResult(false, "截屏失败")
+                return
+            }
+            CoroutineScope(Dispatchers.Main).launch {
+                val results = ScreenOcr.recognize(bitmap)
+                val match = results.find { it.text.contains(action.target) }
+                if (match != null) {
+                    Log.d(TAG, "executeClick: OCR match '${action.target}' at (${match.x}, ${match.y})")
+                    performCoordinateClick(match.x.toInt(), match.y.toInt()) { clicked ->
+                        onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
                     }
-                    CoroutineScope(Dispatchers.Main).launch {
-                        val results = ScreenOcr.recognize(bitmap)
-                        val match = results.find { it.text.contains(action.target) }
-                        if (match != null) {
-                            Log.d(TAG, "executeClick: OCR match '${action.target}' at (${match.x}, ${match.y})")
-                            performCoordinateClick(match.x.toInt(), match.y.toInt()) { clicked ->
-                                onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
-                            }
-                        } else {
-                            Log.w(TAG, "executeClick: OCR found no match for '${action.target}'")
-                            onResult(false, "未找到 ${action.target}")
-                        }
-                        screenshot.hardwareBuffer.close()
-                    }
+                } else {
+                    Log.w(TAG, "executeClick: OCR found no match for '${action.target}'")
+                    onResult(false, "未找到 ${action.target}")
                 }
-                override fun onFailure(errorCode: Int) {
-                    Log.e(TAG, "executeClick: screenshot failed, errorCode=$errorCode")
-                    onResult(false, "截屏失败")
-                }
-            })
+            }
             return
         }
 
         Log.w(TAG, "executeClick: target '${action.target}' not found")
-        root.recycle()
         onResult(false, "未找到 ${action.target}")
     }
 
