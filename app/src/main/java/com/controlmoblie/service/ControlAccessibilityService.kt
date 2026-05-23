@@ -26,8 +26,10 @@ class ControlAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         val traineddataDir = File(filesDir, "tessdata").apply { mkdirs() }
-        ScreenOcr.init(traineddataDir.absolutePath)
-        Log.d(TAG, "Accessibility service connected, OCR ready=${ScreenOcr.isReady}")
+        val traineddata = File(traineddataDir, "chi_sim.traineddata")
+        Log.d(TAG, "Accessibility service connected, traineddata exists=${traineddata.exists()}, size=${traineddata.length()}")
+        val ok = ScreenOcr.init(traineddataDir.absolutePath)
+        Log.d(TAG, "OCR init result=$ok, isReady=${ScreenOcr.isReady}")
     }
 
     override fun onDestroy() {

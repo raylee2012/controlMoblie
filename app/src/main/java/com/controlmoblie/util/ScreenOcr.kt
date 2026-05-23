@@ -14,7 +14,7 @@ data class OcrResult(val text: String, val x: Float, val y: Float, val width: Fl
 object ScreenOcr {
 
     private const val TAG = "ScreenOcr"
-    private const val TRAINEDDATA_URL = "https://github.com/tesseract-ocr/tessdata/raw/main/chi_sim.traineddata"
+    private const val TRAINEDDATA_URL = "https://github.com/tesseract-ocr/tessdata/raw/3.04.00/chi_sim.traineddata"
     private const val TRAINEDDATA_NAME = "chi_sim.traineddata"
     private var tessApi: TessBaseAPI? = null
     private var isInitialized = false
@@ -30,7 +30,12 @@ object ScreenOcr {
                 return false
             }
             val api = TessBaseAPI()
-            api.init(dataPath, "chi_sim")
+            val initResult = api.init(dataPath, "chi_sim")
+            Log.d(TAG, "TessBaseAPI.init returned: $initResult")
+            if (!initResult) {
+                Log.e(TAG, "TessBaseAPI.init failed for dataPath=$dataPath")
+                return false
+            }
             tessApi = api
             isInitialized = true
             Log.d(TAG, "Tesseract initialized with chi_sim")
