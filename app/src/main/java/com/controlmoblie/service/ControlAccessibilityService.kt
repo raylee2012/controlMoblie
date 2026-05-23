@@ -163,12 +163,17 @@ class ControlAccessibilityService : AccessibilityService() {
         if (tabIndex != null) {
             root.recycle()
             val wm = getSystemService(android.view.WindowManager::class.java)
-            val size = android.graphics.Point()
-            wm?.defaultDisplay?.getRealSize(size)
+            // get app usable area (excludes nav bar) for content-level clicks
+            val appSize = android.graphics.Point()
+            wm?.defaultDisplay?.getSize(appSize)
+            // get real size for coordinate calculation
+            val realSize = android.graphics.Point()
+            wm?.defaultDisplay?.getRealSize(realSize)
+            val navBarHeight = realSize.y - appSize.y
             val density = resources.displayMetrics.density
-            val tabW = size.x / 4
+            val tabW = realSize.x / 4
             val x = tabW * tabIndex + tabW / 2
-            val y = size.y - (4 * density).toInt()  // near screen bottom edge
+            val y = realSize.y - navBarHeight - (4 * density).toInt()  // above nav bar, bottom of app
             Log.d(TAG, "executeClick: target=${action.target} coordinate fallback x=$x y=$y")
             performCoordinateClick(x, y) { clicked ->
                 onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
