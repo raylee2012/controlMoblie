@@ -9,7 +9,7 @@ vosk = "0.3.47"
 sherpa-onnx = "1.13.2"
 onnxruntime = "1.18.0"
 commons-compress = "1.26.2"
-tesseract = "9.1.0"
+mlkit-text-recognition = "16.0.1"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -23,7 +23,7 @@ lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", 
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 vosk-android = { group = "com.alphacephei", name = "vosk-android", version.ref = "vosk" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
-tesseract-android = { group = "com.rmtheis", name = "tess-two", version.ref = "tesseract" }
+mlkit-text-recognition-chinese = { group = "com.google.mlkit", name = "text-recognition-chinese", version.ref = "mlkit-text-recognition" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]

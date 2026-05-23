@@ -71,7 +71,7 @@ dependencies {
     implementation(files("libs/sherpa-onnx-1.13.2.aar"))
     implementation(libs.onnxruntime.android)
     implementation(libs.commons.compress)
-    implementation(libs.tesseract.android)
+    implementation(libs.mlkit.text.recognition.chinese)
     testImplementation("junit:junit:4.13.2")
     debugImplementation(libs.compose.ui.tooling)
 }
