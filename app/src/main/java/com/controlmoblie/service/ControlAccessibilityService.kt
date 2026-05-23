@@ -25,9 +25,9 @@ class ControlAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        val traineddata = File(filesDir, "tessdata/chi_sim.traineddata")
-        Log.d(TAG, "Accessibility service connected, traineddata exists=${traineddata.exists()}, size=${traineddata.length()}")
-        val ok = ScreenOcr.init(filesDir.absolutePath)
+        val modelDir = File(filesDir, "paddle-ocr")
+        Log.d(TAG, "Accessibility service connected, modelDir exists=${modelDir.exists()}")
+        val ok = ScreenOcr.init(modelDir.absolutePath)
         Log.d(TAG, "OCR init result=$ok, isReady=${ScreenOcr.isReady}")
     }
 
@@ -217,7 +217,7 @@ class ControlAccessibilityService : AccessibilityService() {
         // fallback 3: OCR screenshot
         root.recycle()
         if (!ScreenOcr.isReady) {
-            ScreenOcr.init(filesDir.absolutePath)
+            ScreenOcr.init(File(filesDir, "paddle-ocr").absolutePath)
             Log.d(TAG, "OCR lazy init: isReady=${ScreenOcr.isReady}")
         }
         if (ScreenOcr.isReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

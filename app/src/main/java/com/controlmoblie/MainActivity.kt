@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
         var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
         var ttsDownloadProgress by remember { mutableStateOf(-1f) }
         var ttsDownloading by remember { mutableStateOf(false) }
-        var ocrTraineddataReady by remember { mutableStateOf(ScreenOcr.isTraineddataReady(this@MainActivity)) }
+        var ocrModelReady by remember { mutableStateOf(ScreenOcr.isModelReady(this@MainActivity)) }
         var ocrDownloadProgress by remember { mutableStateOf(-1f) }
         var ocrDownloading by remember { mutableStateOf(false) }
 
@@ -191,16 +191,16 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            if (!ocrTraineddataReady && !ocrDownloading) {
+            if (!ocrModelReady && !ocrDownloading) {
                 OutlinedButton(
                     onClick = {
                         ocrDownloading = true
                         ocrDownloadProgress = 0f
                         this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
-                            val success = ScreenOcr.downloadTraineddata(this@MainActivity) { progress ->
+                            val success = ScreenOcr.downloadModels(this@MainActivity) { progress ->
                                 ocrDownloadProgress = progress
                             }
-                            ocrTraineddataReady = success
+                            ocrModelReady = success
                             ocrDownloading = false
                             ocrDownloadProgress = -1f
                         }
@@ -212,7 +212,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            if (ocrTraineddataReady && !ocrDownloading) {
+            if (ocrModelReady && !ocrDownloading) {
                 Text("OCR识别 ✓", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall)
             }
