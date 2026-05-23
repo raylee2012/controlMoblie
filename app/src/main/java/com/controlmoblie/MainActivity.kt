@@ -60,9 +60,7 @@ class MainActivity : ComponentActivity() {
         var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
         var ttsDownloadProgress by remember { mutableStateOf(-1f) }
         var ttsDownloading by remember { mutableStateOf(false) }
-        var ocrModelReady by remember { mutableStateOf(ScreenOcr.isModelReady(this@MainActivity)) }
-        var ocrDownloadProgress by remember { mutableStateOf(-1f) }
-        var ocrDownloading by remember { mutableStateOf(false) }
+        var ocrReady by remember { mutableStateOf(ScreenOcr.isReady) }
 
         val overlayLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -179,40 +177,19 @@ class MainActivity : ComponentActivity() {
                     style = MaterialTheme.typography.bodySmall)
             }
 
-            if (ocrDownloading) {
-                LinearProgressIndicator(
-                    progress = { if (ocrDownloadProgress >= 0f) ocrDownloadProgress else 0f },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(
-                    if (ocrDownloadProgress >= 0f) "下载OCR识别数据中... ${(ocrDownloadProgress * 100).toInt()}%"
-                    else "准备下载...",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            if (!ocrModelReady && !ocrDownloading) {
-                OutlinedButton(
+            if (!ocrReady) {
+                Button(
                     onClick = {
-                        ocrDownloading = true
-                        ocrDownloadProgress = 0f
-                        this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
-                            val success = ScreenOcr.downloadModels(this@MainActivity) { progress ->
-                                ocrDownloadProgress = progress
-                            }
-                            ocrModelReady = success
-                            ocrDownloading = false
-                            ocrDownloadProgress = -1f
-                        }
+                        ScreenOcr.init()
+                        ocrReady = ScreenOcr.isReady
                     },
-                    enabled = !ocrDownloading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("下载OCR识别数据 (~15MB)")
+                    Text("初始化 OCR 识别")
                 }
             }
 
-            if (ocrModelReady && !ocrDownloading) {
+            if (ocrReady) {
                 Text("OCR识别 ✓", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall)
             }

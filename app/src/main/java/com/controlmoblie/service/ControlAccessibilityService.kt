@@ -16,7 +16,9 @@ import com.controlmoblie.model.*
 import com.controlmoblie.util.AppResolver
 import com.controlmoblie.util.ScreenOcr
 import com.controlmoblie.util.ScreenReader
-import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ControlAccessibilityService : AccessibilityService() {
 
@@ -25,10 +27,8 @@ class ControlAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        val modelDir = File(filesDir, "paddle-ocr")
-        Log.d(TAG, "Accessibility service connected, modelDir exists=${modelDir.exists()}")
-        val ok = ScreenOcr.init(modelDir.absolutePath)
-        Log.d(TAG, "OCR init result=$ok, isReady=${ScreenOcr.isReady}")
+        ScreenOcr.init()
+        Log.d(TAG, "Accessibility service connected, OCR isReady=${ScreenOcr.isReady}")
     }
 
     override fun onDestroy() {
@@ -217,24 +217,20 @@ class ControlAccessibilityService : AccessibilityService() {
         // fallback 3: OCR screenshot
         root.recycle()
         if (!ScreenOcr.isReady) {
-            ScreenOcr.init(File(filesDir, "paddle-ocr").absolutePath)
+            ScreenOcr.init()
             Log.d(TAG, "OCR lazy init: isReady=${ScreenOcr.isReady}")
         }
         if (ScreenOcr.isReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             Log.d(TAG, "executeClick: trying OCR fallback for '${action.target}'")
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                mainExecutor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(screenshot: ScreenshotResult) {
-                        val bitmap = Bitmap.wrapHardwareBuffer(
-                            screenshot.hardwareBuffer, screenshot.colorSpace
-                        )
-                        if (bitmap == null) {
-                            screenshot.hardwareBuffer.close()
-                            onResult(false, "截屏失败")
-                            return
-                        }
+            takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                override fun onSuccess(screenshot: ScreenshotResult) {
+                    val bitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                    if (bitmap == null) {
+                        screenshot.hardwareBuffer.close()
+                        onResult(false, "截屏失败")
+                        return
+                    }
+                    CoroutineScope(Dispatchers.Main).launch {
                         val results = ScreenOcr.recognize(bitmap)
                         val match = results.find { it.text.contains(action.target) }
                         if (match != null) {
@@ -248,12 +244,12 @@ class ControlAccessibilityService : AccessibilityService() {
                         }
                         screenshot.hardwareBuffer.close()
                     }
-                    override fun onFailure(errorCode: Int) {
-                        Log.e(TAG, "executeClick: screenshot failed, errorCode=$errorCode")
-                        onResult(false, "截屏失败")
-                    }
                 }
-            )
+                override fun onFailure(errorCode: Int) {
+                    Log.e(TAG, "executeClick: screenshot failed, errorCode=$errorCode")
+                    onResult(false, "截屏失败")
+                }
+            })
             return
         }
 
