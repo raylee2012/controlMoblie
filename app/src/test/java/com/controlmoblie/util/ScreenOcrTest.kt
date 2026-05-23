@@ -11,7 +11,15 @@ class ScreenOcrTest {
     }
 
     @Test
+    fun `init sets isReady to true`() {
+        ScreenOcr.release()
+        ScreenOcr.init()
+        assertTrue("isReady should be true after init", ScreenOcr.isReady)
+    }
+
+    @Test
     fun `release clears state`() {
+        ScreenOcr.init()
         ScreenOcr.release()
         assertFalse("isReady should be false after release", ScreenOcr.isReady)
     }
