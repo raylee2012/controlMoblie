@@ -24,7 +24,7 @@ object ScreenOcr {
     fun init(dataPath: String): Boolean {
         if (isInitialized) return true
         return try {
-            val traineddata = File(dataPath, TRAINEDDATA_NAME)
+            val traineddata = File(dataPath, "tessdata/$TRAINEDDATA_NAME")
             if (!traineddata.exists()) {
                 Log.w(TAG, "Traineddata not found at ${traineddata.absolutePath}")
                 return false
