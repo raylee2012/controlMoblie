@@ -136,6 +136,7 @@ class ControlAccessibilityService : AccessibilityService() {
         Log.d(TAG, "executeOpenWeChatPage: page=${action.page} scheme=$scheme")
         try {
             val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(scheme))
+            intent.setPackage("com.tencent.mm")
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
             onResult(true, "已打开 ${action.page}")
