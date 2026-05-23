@@ -8,7 +8,7 @@ coroutines = "1.7.3"
 vosk = "0.3.47"
 sherpa-onnx = "1.13.2"
 commons-compress = "1.26.2"
-tesseract = "4.9.0"
+tesseract = "9.1.0"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -22,7 +22,7 @@ lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", 
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 vosk-android = { group = "com.alphacephei", name = "vosk-android", version.ref = "vosk" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
-tesseract-android = { group = "cz.adaptech", name = "tesseract4android", version.ref = "tesseract" }
+tesseract-android = { group = "com.rmtheis", name = "tess-two", version.ref = "tesseract" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

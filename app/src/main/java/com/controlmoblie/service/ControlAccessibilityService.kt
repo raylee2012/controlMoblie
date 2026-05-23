@@ -3,15 +3,20 @@ package com.controlmoblie.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
+import android.hardware.HardwareBuffer
 import android.os.Build
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.util.Log
 import com.controlmoblie.model.*
 import com.controlmoblie.util.AppResolver
+import com.controlmoblie.util.ScreenOcr
 import com.controlmoblie.util.ScreenReader
+import java.io.File
 
 class ControlAccessibilityService : AccessibilityService() {
 
@@ -20,7 +25,9 @@ class ControlAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.d(TAG, "Accessibility service connected")
+        val traineddataDir = File(filesDir, "tessdata").apply { mkdirs() }
+        ScreenOcr.init(traineddataDir.absolutePath)
+        Log.d(TAG, "Accessibility service connected, OCR ready=${ScreenOcr.isReady}")
     }
 
     override fun onDestroy() {
@@ -203,6 +210,45 @@ class ControlAccessibilityService : AccessibilityService() {
             performCoordinateClick(x, y) { clicked ->
                 onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
             }
+            return
+        }
+
+        // fallback 3: OCR screenshot
+        root.recycle()
+        if (ScreenOcr.isReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Log.d(TAG, "executeClick: trying OCR fallback for '${action.target}'")
+            takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                mainExecutor,
+                object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: ScreenshotResult) {
+                        val bitmap = Bitmap.wrapHardwareBuffer(
+                            screenshot.hardwareBuffer, screenshot.colorSpace
+                        )
+                        if (bitmap == null) {
+                            screenshot.hardwareBuffer.close()
+                            onResult(false, "截屏失败")
+                            return
+                        }
+                        val results = ScreenOcr.recognize(bitmap)
+                        val match = results.find { it.text.contains(action.target) }
+                        if (match != null) {
+                            Log.d(TAG, "executeClick: OCR match '${action.target}' at (${match.x}, ${match.y})")
+                            performCoordinateClick(match.x.toInt(), match.y.toInt()) { clicked ->
+                                onResult(clicked, if (clicked) "已点击 ${action.target}" else "无法点击 ${action.target}")
+                            }
+                        } else {
+                            Log.w(TAG, "executeClick: OCR found no match for '${action.target}'")
+                            onResult(false, "未找到 ${action.target}")
+                        }
+                        screenshot.hardwareBuffer.close()
+                    }
+                    override fun onFailure(errorCode: Int) {
+                        Log.e(TAG, "executeClick: screenshot failed, errorCode=$errorCode")
+                        onResult(false, "截屏失败")
+                    }
+                }
+            )
             return
         }
 

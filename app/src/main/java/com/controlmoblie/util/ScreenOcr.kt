@@ -1,6 +1,5 @@
 package com.controlmoblie.util
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.googlecode.tesseract.android.TessBaseAPI
@@ -19,7 +18,7 @@ object ScreenOcr {
 
     val isReady: Boolean get() = isInitialized
 
-    fun init(context: Context, dataPath: String): Boolean {
+    fun init(dataPath: String): Boolean {
         if (isInitialized) return true
         return try {
             val traineddata = File(dataPath, TRAINEDDATA_NAME)
