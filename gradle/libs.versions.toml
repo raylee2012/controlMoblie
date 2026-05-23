@@ -7,6 +7,7 @@ lifecycle = "2.7.0"
 coroutines = "1.7.3"
 vosk = "0.3.47"
 sherpa-onnx = "1.13.2"
+onnxruntime = "1.18.0"
 commons-compress = "1.26.2"
 tesseract = "9.1.0"
 
@@ -23,6 +24,7 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 vosk-android = { group = "com.alphacephei", name = "vosk-android", version.ref = "vosk" }
 commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
 tesseract-android = { group = "com.rmtheis", name = "tess-two", version.ref = "tesseract" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

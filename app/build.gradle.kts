@@ -48,6 +48,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    packaging {
+        jniLibs {
+            pickFirsts += setOf(
+                "**/libonnxruntime.so"
+            )
+        }
+    }
 }
 
 dependencies {
@@ -61,6 +69,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.vosk.android)
     implementation(files("libs/sherpa-onnx-1.13.2.aar"))
+    implementation(libs.onnxruntime.android)
     implementation(libs.commons.compress)
     implementation(libs.tesseract.android)
     testImplementation("junit:junit:4.13.2")
