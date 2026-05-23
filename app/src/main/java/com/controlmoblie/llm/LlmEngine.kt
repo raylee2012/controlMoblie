@@ -95,6 +95,10 @@ class LlmEngine(private val context: Context) {
         if (templateJson != null) return templateJson
 
         return when {
+            userText.contains("朋友圈") ->
+                "{\"action\": \"open_wechat_page\", \"page\": \"moments\"}"
+            userText.contains("扫一扫") || userText.contains("扫码") ->
+                "{\"action\": \"open_wechat_page\", \"page\": \"scan\"}"
             userText.contains("返回") || userText.contains("后退") ->
                 "{\"action\": \"navigate\", \"type\": \"back\"}"
             userText.contains("主页") || userText.contains("桌面") || userText.contains("主界面") ->

@@ -24,12 +24,7 @@ object CommandTemplates {
         Template(
             keywords = listOf("看朋友圈"),
             extract = { emptyMap() },
-            buildJson = {
-                buildSequenceJson(
-                    step("wait", 500), step("click", "发现"), step("wait", 300),
-                    step("click", "朋友圈"),
-                )
-            }
+            buildJson = { """{"action":"open_wechat_page","page":"moments"}""" }
         ),
         Template(
             keywords = listOf("发朋友圈"),

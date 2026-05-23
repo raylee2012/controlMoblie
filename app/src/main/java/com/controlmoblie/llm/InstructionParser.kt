@@ -63,6 +63,7 @@ class InstructionParser {
         return when (actionType) {
             "click" -> Action.Click(json.optString("target", ""))
             "open_app" -> Action.OpenApp(json.optString("package", ""), json.optString("displayName", ""))
+            "open_wechat_page" -> Action.OpenWeChatPage(json.optString("page", ""))
             "navigate" -> Action.Navigate(
                 try { NavType.valueOf(json.optString("type", "").uppercase()) }
                 catch (e: Exception) { return null }

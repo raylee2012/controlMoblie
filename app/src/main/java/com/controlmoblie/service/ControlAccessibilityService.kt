@@ -66,6 +66,7 @@ class ControlAccessibilityService : AccessibilityService() {
                     onResult(true, "waited ${action.ms}ms")
                 }, action.ms)
             }
+            is Action.OpenWeChatPage -> executeOpenWeChatPage(action, onResult)
             is Action.Sequence -> executeSequence(action, onResult)
         }
     }
@@ -119,6 +120,29 @@ class ControlAccessibilityService : AccessibilityService() {
         }
         nodes.forEach { it.recycle() }
         return null
+    }
+
+    private val wechatSchemes = mapOf(
+        "moments" to "weixin://dl/moments",
+        "scan" to "weixin://dl/scan",
+        "contacts" to "weixin://dl/contacts",
+        "settings" to "weixin://dl/settings",
+        "profile" to "weixin://dl/profile",
+        "chat" to "weixin://dl/chat",
+    )
+
+    private fun executeOpenWeChatPage(action: Action.OpenWeChatPage, onResult: (Boolean, String) -> Unit) {
+        val scheme = wechatSchemes[action.page] ?: "weixin://dl/${action.page}"
+        Log.d(TAG, "executeOpenWeChatPage: page=${action.page} scheme=$scheme")
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(scheme))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            onResult(true, "已打开 ${action.page}")
+        } catch (e: Exception) {
+            Log.e(TAG, "executeOpenWeChatPage failed", e)
+            onResult(false, "打开失败: ${e.message}")
+        }
     }
 
     private val wechatTabPositions = mapOf(
