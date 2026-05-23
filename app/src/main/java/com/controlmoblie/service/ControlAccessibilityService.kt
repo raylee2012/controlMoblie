@@ -217,6 +217,11 @@ class ControlAccessibilityService : AccessibilityService() {
 
         // fallback 3: OCR screenshot
         root.recycle()
+        if (!ScreenOcr.isReady) {
+            val traineddataDir = File(filesDir, "tessdata")
+            ScreenOcr.init(traineddataDir.absolutePath)
+            Log.d(TAG, "OCR lazy init: isReady=${ScreenOcr.isReady}")
+        }
         if (ScreenOcr.isReady && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             Log.d(TAG, "executeClick: trying OCR fallback for '${action.target}'")
             takeScreenshot(
