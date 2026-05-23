@@ -1,8 +1,11 @@
 package com.controlmoblie.util
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.googlecode.tesseract.android.TessBaseAPI
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
 
@@ -73,5 +76,54 @@ object ScreenOcr {
         tessApi?.end()
         tessApi = null
         isInitialized = false
+    }
+
+    suspend fun downloadTraineddata(context: Context, onProgress: (Float) -> Unit): Boolean {
+        return withContext(Dispatchers.IO) {
+            val dir = File(context.filesDir, "tessdata").apply { mkdirs() }
+            val dest = File(dir, TRAINEDDATA_NAME)
+            if (dest.exists()) {
+                withContext(Dispatchers.Main) { onProgress(1f) }
+                return@withContext true
+            }
+            val tmpFile = File(context.cacheDir, "${TRAINEDDATA_NAME}.tmp")
+            try {
+                val url = URL(TRAINEDDATA_URL)
+                val connection = url.openConnection().apply {
+                    connectTimeout = 30000
+                    readTimeout = 60000
+                }
+                connection.connect()
+                val fileLength = connection.contentLengthLong
+                connection.getInputStream().use { input ->
+                    tmpFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var totalRead = 0L
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalRead += bytesRead
+                            if (fileLength > 0) {
+                                withContext(Dispatchers.Main) {
+                                    onProgress(totalRead.toFloat() / fileLength)
+                                }
+                            }
+                        }
+                    }
+                }
+                tmpFile.renameTo(dest)
+                withContext(Dispatchers.Main) { onProgress(1f) }
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Traineddata download failed", e)
+                false
+            } finally {
+                tmpFile.delete()
+            }
+        }
+    }
+
+    fun isTraineddataReady(context: Context): Boolean {
+        return File(context.filesDir, "tessdata/$TRAINEDDATA_NAME").exists()
     }
 }

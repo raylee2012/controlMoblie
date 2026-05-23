@@ -17,6 +17,7 @@ import com.controlmoblie.asr.SenseVoiceModelManager
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 import com.controlmoblie.tts.TtsModelManager
+import com.controlmoblie.util.ScreenOcr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -59,6 +60,9 @@ class MainActivity : ComponentActivity() {
         var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
         var ttsDownloadProgress by remember { mutableStateOf(-1f) }
         var ttsDownloading by remember { mutableStateOf(false) }
+        var ocrTraineddataReady by remember { mutableStateOf(ScreenOcr.isTraineddataReady(this@MainActivity)) }
+        var ocrDownloadProgress by remember { mutableStateOf(-1f) }
+        var ocrDownloading by remember { mutableStateOf(false) }
 
         val overlayLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -172,6 +176,44 @@ class MainActivity : ComponentActivity() {
 
             if (ttsModelReady && !ttsDownloading) {
                 Text("语音合成 ✓", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (ocrDownloading) {
+                LinearProgressIndicator(
+                    progress = { if (ocrDownloadProgress >= 0f) ocrDownloadProgress else 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (ocrDownloadProgress >= 0f) "下载OCR识别数据中... ${(ocrDownloadProgress * 100).toInt()}%"
+                    else "准备下载...",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (!ocrTraineddataReady && !ocrDownloading) {
+                OutlinedButton(
+                    onClick = {
+                        ocrDownloading = true
+                        ocrDownloadProgress = 0f
+                        this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
+                            val success = ScreenOcr.downloadTraineddata(this@MainActivity) { progress ->
+                                ocrDownloadProgress = progress
+                            }
+                            ocrTraineddataReady = success
+                            ocrDownloading = false
+                            ocrDownloadProgress = -1f
+                        }
+                    },
+                    enabled = !ocrDownloading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("下载OCR识别数据 (~15MB)")
+                }
+            }
+
+            if (ocrTraineddataReady && !ocrDownloading) {
+                Text("OCR识别 ✓", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall)
             }
 
