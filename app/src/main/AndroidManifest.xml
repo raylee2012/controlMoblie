@@ -27,7 +27,7 @@
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.main.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Material3.DayNight.NoActionBar">
             <intent-filter>
@@ -52,6 +52,10 @@
             android:name=".service.VoiceControlService"
             android:exported="false"
             android:foregroundServiceType="microphone|mediaProjection" />
+
+        <service
+            android:name=".ui.overlay.OverlayService"
+            android:exported="false" />
 
     </application>
 

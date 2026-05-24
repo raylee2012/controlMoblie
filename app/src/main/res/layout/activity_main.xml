@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Control Mobile"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <include
+        android:id="@+id/include_overlay"
+        layout="@layout/item_permission"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <include
+        android:id="@+id/include_audio"
+        layout="@layout/item_permission"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <include
+        android:id="@+id/include_accessibility"
+        layout="@layout/item_permission"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- ASR Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp">
+
+        <ProgressBar
+            android:id="@+id/pb_asr_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_asr_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:text="下载中..." />
+
+        <Button
+            android:id="@+id/btn_download_asr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="下载语音识别模型" />
+
+        <TextView
+            android:id="@+id/tv_asr_ready"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="语音识别 ✓"
+            android:textColor="@android:color/holo_green_dark"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- TTS Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp">
+
+        <ProgressBar
+            android:id="@+id/pb_tts_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_tts_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:text="下载中..." />
+
+        <Button
+            android:id="@+id/btn_download_tts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="下载语音合成模型" />
+
+        <TextView
+            android:id="@+id/tv_tts_ready"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="语音合成 ✓"
+            android:textColor="@android:color/holo_green_dark"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- OCR Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/btn_init_ocr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="初始化 OCR 识别" />
+
+        <TextView
+            android:id="@+id/tv_ocr_ready"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OCR识别 ✓"
+            android:textColor="@android:color/holo_green_dark"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_start_voice_control"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="启动语音控制" />
+
+</LinearLayout>
