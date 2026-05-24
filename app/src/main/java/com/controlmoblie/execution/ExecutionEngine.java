@@ -27,20 +27,19 @@ public class ExecutionEngine {
     }
 
     public void execute(Action action, OnExecutionResultCallback callback) {
-        ControlAccessibilityService service = ControlAccessibilityService.Companion.getInstance();
+        ControlAccessibilityService service = ControlAccessibilityService.getInstance();
         if (service == null) {
             if (callback != null) {
                 callback.onResult(new ExecutionResult(false, "无障碍服务未连接"));
             }
             return;
         }
-        service.executeAction(action, new kotlin.jvm.functions.Function2<Boolean, String, kotlin.Unit>() {
+        service.executeAction(action, new ControlAccessibilityService.OnActionResultCallback() {
             @Override
-            public kotlin.Unit invoke(Boolean success, String msg) {
+            public void onResult(boolean success, String msg) {
                 if (callback != null) {
                     callback.onResult(new ExecutionResult(success, msg));
                 }
-                return kotlin.Unit.INSTANCE;
             }
         });
     }
