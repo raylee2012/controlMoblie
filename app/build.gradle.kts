@@ -26,7 +26,7 @@ android {
     }
 
     buildFeatures {
-        compose = true
+        viewBinding = true
     }
 
     externalNativeBuild {
@@ -34,14 +34,6 @@ android {
             path = file("src/main/jni/CMakeLists.txt")
             version = "3.22.1"
         }
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     compileOptions {
@@ -65,19 +57,23 @@ android {
 }
 
 dependencies {
-    implementation(platform(libs.compose.bom))
-    implementation(libs.compose.ui)
-    implementation(libs.compose.material3)
-    implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.runtime)
     implementation(libs.lifecycle.service)
     implementation(libs.coroutines.android)
-    implementation(libs.vosk.android)
     implementation(files("libs/sherpa-onnx-1.13.2.aar"))
     implementation(libs.onnxruntime.android)
     implementation(libs.commons.compress)
     implementation(libs.mlkit.text.recognition.chinese)
+
+    // ViewBinding + MVVM
+    implementation("androidx.lifecycle:lifecycle-livedata:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-extensions:2.2.0")
+    implementation("androidx.activity:activity:1.8.2")
+    implementation("com.google.android.material:material:1.11.0")
+
+    // Testing
     testImplementation("junit:junit:4.13.2")
-    debugImplementation(libs.compose.ui.tooling)
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
 }
