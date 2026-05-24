@@ -13,4 +13,5 @@ public class ScreenState {
 
     public String getPackageName() { return packageName; }
     public List<String> getTexts() { return texts; }
+    public List<String> getNodeTexts() { return texts; }
 }
