@@ -26,10 +26,10 @@ public class CommandTemplates {
             Arrays.asList("发消息给", "发消息"),
             CommandTemplates::extractSendMessage,
             p -> buildSequenceJson(
-                step("wait", "500"), step("click", "通讯录"), step("wait", "300"),
-                step("click", p.getOrDefault("target", "")), step("wait", "300"),
-                step("type", p.getOrDefault("text", "")), step("wait", "300"),
-                step("click", "发送")
+                waitStep(500), clickStep("通讯录"), waitStep(300),
+                clickStep(p.getOrDefault("target", "")), waitStep(300),
+                typeStep(p.getOrDefault("text", "")), waitStep(300),
+                clickStep("发送")
             )
         ),
         new Template(
@@ -48,11 +48,11 @@ public class CommandTemplates {
                 return map;
             },
             p -> buildSequenceJson(
-                step("wait", "500"), step("click", "发现"), step("wait", "300"),
-                step("click", "朋友圈"), step("wait", "500"),
-                step("click", "拍照分享"), step("wait", "300"),
-                step("type", p.getOrDefault("text", "")), step("wait", "300"),
-                step("click", "发表")
+                waitStep(500), clickStep("发现"), waitStep(300),
+                clickStep("朋友圈"), waitStep(500),
+                clickStep("拍照分享"), waitStep(300),
+                typeStep(p.getOrDefault("text", "")), waitStep(300),
+                clickStep("发表")
             )
         ),
         new Template(
@@ -65,9 +65,9 @@ public class CommandTemplates {
                 return map;
             },
             p -> buildSequenceJson(
-                step("wait", "500"),
-                step("scroll", "{\"direction\":\"down\",\"distance\":\"short\"}"),
-                step("wait", "300"), step("click", p.getOrDefault("name", ""))
+                waitStep(500),
+                scrollStep("down", "short"),
+                waitStep(300), clickStep(p.getOrDefault("name", ""))
             )
         ),
         new Template(
@@ -80,10 +80,10 @@ public class CommandTemplates {
                 return map;
             },
             p -> buildSequenceJson(
-                step("wait", "500"), step("click", "通讯录"), step("wait", "300"),
-                step("click", "公众号"), step("wait", "300"),
-                step("type", p.getOrDefault("name", "")), step("wait", "500"),
-                step("click", p.getOrDefault("name", ""))
+                waitStep(500), clickStep("通讯录"), waitStep(300),
+                clickStep("公众号"), waitStep(300),
+                typeStep(p.getOrDefault("name", "")), waitStep(500),
+                clickStep(p.getOrDefault("name", ""))
             )
         ),
         new Template(
@@ -99,9 +99,9 @@ public class CommandTemplates {
                 return map;
             },
             p -> buildSequenceJson(
-                step("wait", "500"), step("click", "通讯录"), step("wait", "300"),
-                step("click", p.getOrDefault("target", "")), step("wait", "300"),
-                step("click", "朋友圈")
+                waitStep(500), clickStep("通讯录"), waitStep(300),
+                clickStep(p.getOrDefault("target", "")), waitStep(300),
+                clickStep("朋友圈")
             )
         )
     );
@@ -152,8 +152,30 @@ public class CommandTemplates {
         return null;
     }
 
-    private static String step(String type, String target) {
-        return "{\"action\":\"" + type + "\",\"target\":\"" + target + "\"}";
+    private static String clickStep(String target) {
+        return "{\"action\":\"click\",\"target\":\"" + escapeJson(target) + "\"}";
+    }
+
+    private static String typeStep(String text) {
+        return "{\"action\":\"type\",\"text\":\"" + escapeJson(text) + "\"}";
+    }
+
+    private static String waitStep(long ms) {
+        return "{\"action\":\"wait\",\"ms\":" + ms + "}";
+    }
+
+    private static String scrollStep(String direction, String distance) {
+        return "{\"action\":\"scroll\",\"direction\":\"" + escapeJson(direction)
+            + "\",\"distance\":\"" + escapeJson(distance) + "\"}";
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) return "";
+        return value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r");
     }
 
     private static String buildSequenceJson(String... steps) {

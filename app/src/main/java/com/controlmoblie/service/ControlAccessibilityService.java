@@ -191,27 +191,64 @@ public class ControlAccessibilityService extends AccessibilityService {
     }
 
     private AccessibilityNodeInfo findClickableByContentDesc(AccessibilityNodeInfo root, String text) {
-        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
-        if (nodes.isEmpty()) {
-            Log.w(TAG, "findClickableByContentDesc: '" + text + "' - no text or contentDesc match at all");
+        AccessibilityNodeInfo result = findClickableByContentDescRecursive(root, text, false);
+        if (result == null) {
+            Log.w(TAG, "findClickableByContentDesc: '" + text + "' - no contentDesc match");
+        }
+        return result;
+    }
+
+    private AccessibilityNodeInfo findClickableByContentDescRecursive(
+            AccessibilityNodeInfo node,
+            String text,
+            boolean recycleNodeWhenDone
+    ) {
+        if (node == null) return null;
+
+        CharSequence desc = node.getContentDescription();
+        if (desc != null && desc.toString().contains(text)) {
+            AccessibilityNodeInfo clickable = findClickableAncestorOrSelf(node);
+            if (clickable != null) {
+                if (clickable != node && recycleNodeWhenDone) {
+                    node.recycle();
+                }
+                return clickable;
+            }
+            if (recycleNodeWhenDone) {
+                return node;
+            }
             return null;
         }
-        for (AccessibilityNodeInfo node : nodes) {
-            AccessibilityNodeInfo current = node;
-            while (current != null) {
-                if (current.isClickable()) {
-                    for (AccessibilityNodeInfo n : nodes) {
-                        if (n != current) n.recycle();
-                    }
-                    return current;
+
+        int childCount = node.getChildCount();
+        for (int i = 0; i < childCount; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo result = findClickableByContentDescRecursive(child, text, true);
+            if (result != null) {
+                if (recycleNodeWhenDone && result != node) {
+                    node.recycle();
                 }
-                AccessibilityNodeInfo parent = current.getParent();
-                if (current != node) current.recycle();
-                current = parent;
+                return result;
             }
         }
-        for (AccessibilityNodeInfo node : nodes) {
+
+        if (recycleNodeWhenDone) {
             node.recycle();
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findClickableAncestorOrSelf(AccessibilityNodeInfo node) {
+        AccessibilityNodeInfo current = node;
+        while (current != null) {
+            if (current.isClickable()) {
+                return current;
+            }
+            AccessibilityNodeInfo parent = current.getParent();
+            if (current != node) {
+                current.recycle();
+            }
+            current = parent;
         }
         return null;
     }
@@ -268,7 +305,9 @@ public class ControlAccessibilityService extends AccessibilityService {
         AccessibilityNodeInfo clickable = findClickableByText(root, target);
         if (clickable != null) {
             boolean clicked = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-            clickable.recycle();
+            if (clickable != root) {
+                clickable.recycle();
+            }
             Log.d(TAG, "executeClick: target=" + target + " text-match success=" + clicked);
             if (clicked) {
                 root.recycle();

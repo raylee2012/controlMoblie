@@ -88,5 +88,7 @@ public class InstructionParserTest {
         String prompt = InstructionParser.buildPrompt("打开微信", "com.tencent.mm");
         assertTrue(prompt.contains("打开微信"));
         assertTrue(prompt.contains("com.tencent.mm"));
+        assertTrue(prompt.contains("<|im_end|>"));
+        assertFalse(prompt.contains("\nп\n"));
     }
 }

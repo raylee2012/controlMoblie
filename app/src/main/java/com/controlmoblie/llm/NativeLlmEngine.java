@@ -3,7 +3,7 @@ package com.controlmoblie.llm;
 public class NativeLlmEngine {
     static {
         try {
-            System.loadLibrary("llama");
+            System.loadLibrary("llama_jni");
         } catch (UnsatisfiedLinkError e) {
             // JNI library may not be available in test environments
         }

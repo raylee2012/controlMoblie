@@ -154,8 +154,10 @@ public class InstructionParser {
 
     public static String buildPrompt(String userText, String screenContext) {
         String systemMsg = screenContext != null && !screenContext.isEmpty()
-            ? "你是手机助手，将语音指令转为JSON操作。屏幕:" + screenContext
-            : "你是手机助手，将语音指令转为JSON操作。";
-        return "<|im_start|>system\n" + systemMsg + "\nп\n<|im_start|>user\n" + userText + "\nп\n<|im_start|>assistant\n";
+            ? "你是手机助手，将语音指令转为JSON操作。只输出JSON，不要解释。屏幕:" + screenContext
+            : "你是手机助手，将语音指令转为JSON操作。只输出JSON，不要解释。";
+        return "<|im_start|>system\n" + systemMsg + "\n<|im_end|>\n"
+            + "<|im_start|>user\n" + userText + "\n<|im_end|>\n"
+            + "<|im_start|>assistant\n";
     }
 }
