@@ -1,21 +1,23 @@
 # controlMoblie
 
-ControlMoblie is an Android voice-control experiment for operating a phone with spoken commands. It records speech, recognizes command text, converts the text into structured actions, and executes those actions through Android Accessibility Service.
+[中文](README.md) | [English](README.en.md)
 
-> The repository keeps the original project spelling: `controlMoblie`.
+ControlMoblie 是一个 Android 语音控制实验项目：用户说出自然语言指令，应用将语音转成文本，再解析为结构化操作，并通过 Android Accessibility Service 执行点击、滑动、返回、打开应用、输入文本等动作。
 
-## Features
+> 仓库名沿用项目初始拼写：`controlMoblie`。
 
-- Voice-command pipeline: ASR -> instruction parsing -> action execution.
-- Local LLM support with Qwen2.5-0.5B GGUF through llama.cpp JNI.
-- Rule/template fallback when the LLM model or native runtime is unavailable.
-- Android Accessibility actions: click, scroll, back, home, recents, open app, type text, wait, and action sequences.
-- Floating Compose overlay for voice-control status.
-- WeChat command templates for common flows such as Moments, sending messages, public-account search, and mini-program entry.
-- OCR fallback with MediaProjection screenshot + ML Kit Chinese text recognition.
-- Offline TTS feedback with sherpa-onnx.
+## 功能特性
 
-## Tech Stack
+- 语音控制链路：ASR -> 指令解析 -> 操作执行。
+- 支持 Qwen2.5-0.5B GGUF + llama.cpp JNI 本地推理。
+- 当 LLM 模型或 native 运行时不可用时，自动降级到规则/模板解析。
+- 支持常用无障碍操作：点击、滑动、返回、回桌面、最近任务、打开应用、输入文本、等待和顺序动作。
+- 使用 Jetpack Compose 悬浮窗显示语音控制状态。
+- 内置微信指令模板：看朋友圈、发朋友圈、发消息、搜索公众号、打开小程序等。
+- 支持 MediaProjection 截屏 + ML Kit 中文 OCR 兜底识别。
+- 支持 sherpa-onnx 离线 TTS 语音反馈。
+
+## 技术栈
 
 - Kotlin + Jetpack Compose
 - Android Foreground Service
@@ -25,45 +27,45 @@ ControlMoblie is an Android voice-control experiment for operating a phone with 
 - Google ML Kit Chinese Text Recognition
 - Gradle + Android Gradle Plugin
 
-## Architecture
+## 架构
 
 ```text
 VoiceControlService
-  -> SpeechRecognizerManager        # ASR events
-  -> LlmEngine + InstructionParser  # JSON action parsing
-  -> ExecutionEngine                # execution facade
-  -> ControlAccessibilityService    # accessibility actions
-  -> ControlOverlay                 # floating status UI
-  -> TtsSpeaker                     # voice feedback
+  -> SpeechRecognizerManager        # ASR 事件
+  -> LlmEngine + InstructionParser  # JSON 指令解析
+  -> ExecutionEngine                # 执行门面
+  -> ControlAccessibilityService    # 无障碍动作
+  -> ControlOverlay                 # 悬浮窗状态
+  -> TtsSpeaker                     # 语音反馈
 ```
 
-`ControlAccessibilityService.instance` is the bridge between the foreground voice service and the accessibility service. Do not pass the accessibility service manually.
+`ControlAccessibilityService.instance` 是前台语音服务和无障碍服务之间的桥接点。不要手动传递 AccessibilityService 实例。
 
-## Project Layout
+## 目录结构
 
 ```text
 app/src/main/java/com/controlmoblie/
-|-- asr/          # speech recognition and ASR model management
-|-- execution/    # ExecutionEngine facade
-|-- llm/          # LlmEngine, InstructionParser, command templates, JNI wrapper
-|-- model/        # Action sealed class and shared models
-|-- overlay/      # Compose floating overlay and permission helpers
-|-- service/      # foreground voice service and accessibility service
-|-- tts/          # sherpa-onnx TTS model and speaker
-`-- util/         # app resolver, OCR, screen capture, screen reader
+|-- asr/          # 语音识别和 ASR 模型管理
+|-- execution/    # ExecutionEngine 执行门面
+|-- llm/          # LlmEngine、InstructionParser、命令模板、JNI 封装
+|-- model/        # Action sealed class 和共享模型
+|-- overlay/      # Compose 悬浮窗和权限工具
+|-- service/      # 前台语音服务和无障碍服务
+|-- tts/          # sherpa-onnx TTS 模型和播报器
+`-- util/         # 应用解析、OCR、截屏、屏幕读取工具
 ```
 
-Design and implementation notes are in `docs/superpowers/`.
+设计与实现文档位于 `docs/superpowers/`。
 
-## Build
+## 构建
 
-Requirements:
+环境要求：
 
 - Android Studio / Android SDK
 - JDK 17
-- Android NDK + CMake for llama.cpp JNI
+- Android NDK + CMake，用于构建 llama.cpp JNI
 
-Commands:
+常用命令：
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
@@ -71,32 +73,32 @@ Commands:
 .\gradlew.bat :app:testDebugUnitTest
 ```
 
-Debug APK output:
+Debug APK 输出位置：
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Runtime Setup
+## 运行前准备
 
-On first launch, enable or grant:
+首次运行后，请在主界面完成以下权限或模型准备：
 
-1. Microphone permission.
-2. Overlay permission.
-3. Accessibility Service for ControlMoblie.
-4. MediaProjection/screen-capture permission if OCR fallback is needed.
-5. ASR, LLM, and TTS model downloads as needed.
+1. 授予录音权限。
+2. 开启悬浮窗权限。
+3. 开启 ControlMoblie 无障碍服务。
+4. 如需 OCR 兜底，授予 MediaProjection / 屏幕录制权限。
+5. 根据需要下载 ASR、LLM 和 TTS 模型。
 
-## Model Files
+## 模型文件
 
-The app stores downloaded models in its private files directory:
+应用会将下载的模型保存到 app 私有 files 目录：
 
-- LLM: `qwen2.5-0.5b-q4.gguf`
-- ASR/TTS: model directories managed by their corresponding model managers
+- LLM：`qwen2.5-0.5b-q4.gguf`
+- ASR / TTS：由对应的模型管理器维护模型目录
 
-If the LLM model is missing or llama.cpp JNI fails to load, `LlmEngine` uses `simulateInference()` as a keyword/template fallback.
+如果 LLM 模型缺失，或 llama.cpp JNI 加载失败，`LlmEngine` 会使用 `simulateInference()` 作为关键词/模板兜底解析。
 
-## Example Commands
+## 指令示例
 
 ```text
 打开微信
@@ -114,10 +116,10 @@ If the LLM model is missing or llama.cpp JNI fails to load, `LlmEngine` uses `si
 搜索公众号人民日报
 ```
 
-## Notes
+## 注意事项
 
-- Android 14+ foreground service permissions are required for microphone and MediaProjection flows.
-- Accessibility node objects returned from Android APIs must be recycled to avoid native memory leaks.
-- OCR fallback only works after screen-capture permission is granted.
-- `app/libs/sherpa-onnx-1.13.2.aar` is larger than GitHub's recommended 50 MB file size; Git LFS is recommended for long-term maintenance.
-- This project is intended for personal automation experiments. Use Accessibility permissions carefully.
+- Android 14+ 的麦克风和 MediaProjection 前台服务流程需要对应权限声明。
+- Android API 返回的 AccessibilityNodeInfo 需要及时 recycle，避免 native 内存泄漏。
+- OCR 兜底需要先授予屏幕录制权限。
+- `app/libs/sherpa-onnx-1.13.2.aar` 超过 GitHub 推荐的 50 MB 文件大小，长期维护建议迁移到 Git LFS。
+- 本项目面向个人设备自动化实验，请谨慎授予无障碍权限。
