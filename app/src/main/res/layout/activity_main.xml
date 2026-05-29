@@ -70,6 +70,43 @@
 
     </LinearLayout>
 
+    <!-- LLM Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp">
+
+        <ProgressBar
+            android:id="@+id/pb_llm_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_llm_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:text="下载中..." />
+
+        <Button
+            android:id="@+id/btn_download_llm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="下载指令推理模型" />
+
+        <TextView
+            android:id="@+id/tv_llm_ready"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="指令推理 ✓"
+            android:textColor="@android:color/holo_green_dark"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
     <!-- TTS Section -->
     <LinearLayout
         android:layout_width="match_parent"

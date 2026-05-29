@@ -13,6 +13,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
 import com.controlmoblie.asr.SenseVoiceModelManager;
+import com.controlmoblie.llm.LlmEngine;
 import com.controlmoblie.model.DownloadProgress;
 import com.controlmoblie.model.InstructionResult;
 import com.controlmoblie.model.VoiceState;
@@ -31,14 +32,17 @@ public class MainViewModel extends AndroidViewModel {
     private final MutableLiveData<Boolean> hasAudio = new MutableLiveData<>();
     private final MutableLiveData<Boolean> hasAccessibility = new MutableLiveData<>();
     private final MutableLiveData<Boolean> asrModelReady = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> llmModelReady = new MutableLiveData<>();
     private final MutableLiveData<Boolean> ttsModelReady = new MutableLiveData<>();
     private final MutableLiveData<Boolean> ocrReady = new MutableLiveData<>();
     private final MutableLiveData<DownloadProgress> asrProgress = new MutableLiveData<>();
+    private final MutableLiveData<DownloadProgress> llmProgress = new MutableLiveData<>();
     private final MutableLiveData<DownloadProgress> ttsProgress = new MutableLiveData<>();
     private final MutableLiveData<VoiceState> voiceState = new MutableLiveData<>();
     private final MutableLiveData<String> recognizedText = new MutableLiveData<>();
     private final MutableLiveData<InstructionResult> lastResult = new MutableLiveData<>();
 
+    private final LlmEngine llmEngine;
     private VoiceControlBinder binder;
     private boolean bound = false;
     private final List<Observer> observers = new ArrayList<>();
@@ -58,6 +62,7 @@ public class MainViewModel extends AndroidViewModel {
 
     public MainViewModel(@NonNull Application application) {
         super(application);
+        llmEngine = new LlmEngine(application);
     }
 
     private void observeBinder() {
@@ -105,6 +110,7 @@ public class MainViewModel extends AndroidViewModel {
     @Override
     protected void onCleared() {
         unbindService(getApplication());
+        llmEngine.shutdown();
     }
 
     public void refreshPermissions(Context context) {
@@ -115,6 +121,7 @@ public class MainViewModel extends AndroidViewModel {
 
     public void refreshModelStatus(Context context) {
         asrModelReady.postValue(SenseVoiceModelManager.isModelReady(context));
+        llmModelReady.postValue(llmEngine.isDownloaded());
         ttsModelReady.postValue(TtsModelManager.isModelReady(context));
         ocrReady.postValue(ScreenOcr.isReady());
     }
@@ -125,6 +132,18 @@ public class MainViewModel extends AndroidViewModel {
             asrProgress.postValue(new DownloadProgress(progress));
             if (progress >= 1f) {
                 asrModelReady.postValue(SenseVoiceModelManager.isModelReady(context));
+            }
+        });
+    }
+
+    public void downloadLlmModel(Context context) {
+        llmProgress.postValue(new DownloadProgress(0f));
+        llmEngine.downloadModel(progress -> {
+            llmProgress.postValue(new DownloadProgress(progress));
+            if (progress >= 1f) {
+                llmModelReady.postValue(llmEngine.isDownloaded());
+            } else if (progress < 0f) {
+                llmModelReady.postValue(false);
             }
         });
     }
@@ -147,9 +166,11 @@ public class MainViewModel extends AndroidViewModel {
     public MutableLiveData<Boolean> getHasAudio() { return hasAudio; }
     public MutableLiveData<Boolean> getHasAccessibility() { return hasAccessibility; }
     public MutableLiveData<Boolean> getAsrModelReady() { return asrModelReady; }
+    public MutableLiveData<Boolean> getLlmModelReady() { return llmModelReady; }
     public MutableLiveData<Boolean> getTtsModelReady() { return ttsModelReady; }
     public MutableLiveData<Boolean> getOcrReady() { return ocrReady; }
     public MutableLiveData<DownloadProgress> getAsrProgress() { return asrProgress; }
+    public MutableLiveData<DownloadProgress> getLlmProgress() { return llmProgress; }
     public MutableLiveData<DownloadProgress> getTtsProgress() { return ttsProgress; }
     public MutableLiveData<VoiceState> getVoiceState() { return voiceState; }
     public MutableLiveData<String> getRecognizedText() { return recognizedText; }

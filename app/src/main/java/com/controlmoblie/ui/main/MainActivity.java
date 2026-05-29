@@ -107,6 +107,11 @@ public class MainActivity extends AppCompatActivity {
             binding.tvAsrReady.setVisibility(ready ? View.VISIBLE : View.GONE);
         });
 
+        viewModel.getLlmModelReady().observe(this, ready -> {
+            binding.btnDownloadLlm.setVisibility(ready ? View.GONE : View.VISIBLE);
+            binding.tvLlmReady.setVisibility(ready ? View.VISIBLE : View.GONE);
+        });
+
         viewModel.getTtsModelReady().observe(this, ready -> {
             binding.btnDownloadTts.setVisibility(ready ? View.GONE : View.VISIBLE);
             binding.tvTtsReady.setVisibility(ready ? View.VISIBLE : View.GONE);
@@ -124,6 +129,16 @@ public class MainActivity extends AppCompatActivity {
             if (inProgress) {
                 binding.pbAsrProgress.setProgress((int) (progress.getProgress() * 100));
                 binding.tvAsrProgress.setText(String.format("下载中 %.0f%%", progress.getProgress() * 100));
+            }
+        });
+
+        viewModel.getLlmProgress().observe(this, progress -> {
+            boolean inProgress = progress != null && progress.isInProgress();
+            binding.pbLlmProgress.setVisibility(inProgress ? View.VISIBLE : View.GONE);
+            binding.tvLlmProgress.setVisibility(inProgress ? View.VISIBLE : View.GONE);
+            if (inProgress) {
+                binding.pbLlmProgress.setProgress((int) (progress.getProgress() * 100));
+                binding.tvLlmProgress.setText(String.format("下载中 %.0f%%", progress.getProgress() * 100));
             }
         });
 
@@ -152,6 +167,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupButtons() {
         binding.btnDownloadAsr.setOnClickListener(v -> viewModel.downloadAsrModel(this));
+        binding.btnDownloadLlm.setOnClickListener(v -> viewModel.downloadLlmModel(this));
         binding.btnDownloadTts.setOnClickListener(v -> viewModel.downloadTtsModel(this));
 
         binding.btnInitOcr.setOnClickListener(v -> {
