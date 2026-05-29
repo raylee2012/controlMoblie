@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.controlmoblie.asr.SenseVoiceModelManager
+import com.controlmoblie.llm.LlmEngine
 import com.controlmoblie.overlay.PermissionHelper
 import com.controlmoblie.service.VoiceControlService
 import com.controlmoblie.tts.TtsModelManager
@@ -60,6 +61,10 @@ class MainActivity : ComponentActivity() {
         var asrModelReady by remember { mutableStateOf(SenseVoiceModelManager.isModelReady(this@MainActivity)) }
         var asrDownloadProgress by remember { mutableStateOf(-1f) }
         var asrDownloading by remember { mutableStateOf(false) }
+        val llmEngine = remember { LlmEngine(this@MainActivity) }
+        var llmModelReady by remember { mutableStateOf(llmEngine.isDownloaded) }
+        var llmDownloadProgress by remember { mutableStateOf(-1f) }
+        var llmDownloading by remember { mutableStateOf(false) }
         var ttsModelReady by remember { mutableStateOf(TtsModelManager.isModelReady(this@MainActivity)) }
         var ttsDownloadProgress by remember { mutableStateOf(-1f) }
         var ttsDownloading by remember { mutableStateOf(false) }
@@ -156,6 +161,48 @@ class MainActivity : ComponentActivity() {
 
             if (asrModelReady && !asrDownloading) {
                 Text("语音识别 ✓", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (llmDownloading) {
+                LinearProgressIndicator(
+                    progress = { if (llmDownloadProgress >= 0f) llmDownloadProgress else 0f },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (llmDownloadProgress >= 0f) "下载指令推理模型中... ${(llmDownloadProgress * 100).toInt()}%"
+                    else "准备下载...",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (!llmModelReady && !llmDownloading) {
+                OutlinedButton(
+                    onClick = {
+                        llmDownloading = true
+                        llmDownloadProgress = 0f
+                        this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
+                            runCatching {
+                                llmEngine.downloadModel { progress ->
+                                    this@MainActivity.lifecycleScope.launch(Dispatchers.Main) {
+                                        llmDownloadProgress = progress
+                                    }
+                                }
+                            }
+                            llmModelReady = llmEngine.isDownloaded
+                            llmDownloading = false
+                            llmDownloadProgress = -1f
+                        }
+                    },
+                    enabled = !llmDownloading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("下载指令推理模型 (~350MB)")
+                }
+            }
+
+            if (llmModelReady && !llmDownloading) {
+                Text("指令推理 ✓", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall)
             }
 
